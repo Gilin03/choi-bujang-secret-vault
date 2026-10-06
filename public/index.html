@@ -100,8 +100,12 @@
 
   <script type="module">
     import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2';
+    import { createAuthProxyFetch } from './auth-proxy-client.js';
 
-    const supabase = createClient('https://jbmdrruojvgenkxzuird.supabase.co', 'sb_publishable_QNUcGcLZWwsNjvDpdrJiYw_1h_yDcha');
+    const supabaseUrl = 'https://jbmdrruojvgenkxzuird.supabase.co';
+    const supabase = createClient(supabaseUrl, 'auth-proxy-managed', {
+      global: { fetch: createAuthProxyFetch({ supabaseUrl }) },
+    });
     const loginPanel = document.querySelector('#login-panel');
     const accountPanel = document.querySelector('#account-panel');
     const workspace = document.querySelector('#workspace');

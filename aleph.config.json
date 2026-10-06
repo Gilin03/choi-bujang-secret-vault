@@ -14,7 +14,10 @@
     "POST /api/notes",
     "GET /api/notes/:id",
     "PUT /api/notes/:id",
-    "DELETE /api/notes/:id"
+    "DELETE /api/notes/:id",
+    "POST /api/auth-proxy/token",
+    "GET /api/auth-proxy/user",
+    "POST /api/auth-proxy/logout"
   ],
   "originalApiUrl": "https://jbmdrruojvgenkxzuird.supabase.co/rest/v1/vault_notes",
   "restoreRoute": null
