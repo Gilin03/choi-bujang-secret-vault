@@ -146,6 +146,38 @@ test('a student can read, update, and delete their own note without changing its
   assert.equal(missing.status, 404);
 });
 
+test('B can list and perform CRUD on B-owned notes while forged owner fields are ignored', async () => {
+  const noteB = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+  const { list, item, database } = makeHandlers({ rows: [
+    { table: 'vault_notes', id: noteB, sort_order: 4, owner_id: userB, title: 'B 메모', content: 'B 내용' },
+  ] });
+
+  const listed = await list.fetch(req('/api/notes', 'GET', 'Bearer token-b'));
+  assert.equal(listed.status, 200);
+  assert.deepEqual((await listed.json()).notes, [
+    { id: noteB, title: 'B 메모', body: 'B 내용' },
+  ]);
+
+  const read = await item.fetch(req(`/api/notes/${noteB}`, 'GET', 'Bearer token-b'));
+  assert.equal(read.status, 200);
+
+  const updated = await item.fetch(req(`/api/notes/${noteB}`, 'PUT', 'Bearer token-b', {
+    title: 'B가 수정한 제목', body: 'B가 수정한 본문', owner_id: userA,
+  }));
+  assert.equal(updated.status, 200);
+  assert.equal(database.rows[0].owner_id, userB);
+
+  const created = await list.fetch(req('/api/notes', 'POST', 'Bearer token-b', {
+    title: 'B 새 메모', body: 'B 새 본문', userId: userA, owner_id: userA,
+  }));
+  assert.equal(created.status, 201);
+  const { id } = await created.json();
+  assert.equal(database.rows.at(-1).owner_id, userB);
+
+  const deleted = await item.fetch(req(`/api/notes/${id}`, 'DELETE', 'Bearer token-b'));
+  assert.equal(deleted.status, 204);
+});
+
 test('a student cannot read, update, or delete another student’s note by guessing its UUID', async () => {
   const original = {
     table: 'vault_notes', id: noteA, sort_order: 5, owner_id: userA,
