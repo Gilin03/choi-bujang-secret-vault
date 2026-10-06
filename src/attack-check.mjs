@@ -1,7 +1,7 @@
 // The bundle records the results of actual anonymous requests. It never
 // returns response bodies, note text, keys, or judge decisions.
 export async function runAttackChecks(config) {
-  if (config.step !== 2) throw new Error('이 단계의 공격 점검을 src/attack-check.mjs에 구현해 주세요.');
+  if (config.step !== 3) throw new Error('이 단계의 공격 점검을 src/attack-check.mjs에 구현해 주세요.');
 
   let app;
   try {
@@ -27,17 +27,8 @@ export async function runAttackChecks(config) {
   }
 
   const apiResponse = await request('/api/notes');
-  let apiCount = null;
-  if (apiResponse?.ok) {
-    try {
-      const data = await apiResponse.json();
-      if (Array.isArray(data?.notes)) apiCount = data.notes.length;
-    } catch {
-      // Report only that the expected JSON shape was not observed.
-    }
-  }
   const apiObserved = apiResponse
-    ? `비로그인 GET /api/notes HTTP ${apiResponse.status}${apiCount === null ? ', 응답 형식 확인 실패' : `, ${apiCount}건 확인`}`
+    ? `비로그인 GET /api/notes HTTP ${apiResponse.status}${apiResponse.status === 401 ? ', 인증 거부 확인' : ', 인증 없이 거부되지 않음'}`
     : '비로그인 GET /api/notes 응답 없음';
 
   const staticResponse = await request('/data.json');
@@ -60,13 +51,13 @@ export async function runAttackChecks(config) {
 
   const writeResponse = await request('/api/notes', 'POST');
   const writeObserved = writeResponse
-    ? `비로그인 POST /api/notes HTTP ${writeResponse.status}${writeResponse.status === 405 ? ', 거부 확인' : ', 거부되지 않음'}`
+    ? `비로그인 POST /api/notes HTTP ${writeResponse.status}${writeResponse.status === 401 ? ', 인증 거부 확인' : ', 인증 없이 거부되지 않음'}`
     : '비로그인 POST /api/notes 응답 없음';
 
   return [
     {
       attackId: 'anonymous_note_read',
-      expected: '비로그인 GET /api/notes에서 가상 메모 네 건을 읽을 수 있음',
+      expected: '비로그인 GET /api/notes는 401로 거부됨',
       observed: apiObserved,
     },
     {
@@ -76,7 +67,7 @@ export async function runAttackChecks(config) {
     },
     {
       attackId: 'anonymous_note_write',
-      expected: '비로그인 POST /api/notes는 405로 거부됨',
+      expected: '비로그인 POST /api/notes는 401로 거부됨',
       observed: writeObserved,
     },
   ];
