@@ -33,7 +33,7 @@ test('build identity uses Vercel Git and deployment metadata', () => {
   assert.throws(() => deploymentIdentity({ ...env, VERCEL_GIT_COMMIT_SHA: 'short' }, config));
 });
 
-test('stage 3 attack checks verify anonymous API access is denied and static JSON is gone', async () => {
+test('stage 4 attack checks verify anonymous API access is denied and static JSON is gone', async () => {
   const originalFetch = globalThis.fetch;
   const requests = [];
   try {
@@ -45,7 +45,7 @@ test('stage 3 attack checks verify anonymous API access is denied and static JSO
       }
       return new Response('', { status: 404 });
     };
-    const results = await runAttackChecks({ ...config, step: 3 });
+    const results = await runAttackChecks({ ...config, step: 4 });
     assert.deepEqual(requests.map(({ url, init }) => ({
       url,
       method: init.method,
@@ -81,7 +81,7 @@ test('stage 3 attack checks verify anonymous API access is denied and static JSO
     assert.doesNotMatch(JSON.stringify(results), /fixture-only-title/u);
 
     globalThis.fetch = async () => new Response('<html>not the data</html>', { status: 200 });
-    const [malformed] = await runAttackChecks({ ...config, step: 3 });
+    const [malformed] = await runAttackChecks({ ...config, step: 4 });
     assert.match(malformed.observed, /HTTP 200/u);
     assert.doesNotMatch(malformed.observed, /4/u);
   } finally {

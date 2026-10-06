@@ -83,16 +83,13 @@ export function createNotesHandler({ env = process.env, createClient, verifyLogi
       try {
         const supabase = await database(env, createClient);
         if (request.method === 'GET') {
-          const [samples, notes] = await Promise.all([
-            supabase.from('vault_notes').select('id,title,content').is('owner_id', null)
-              .order('sort_order', { ascending: true }),
-            supabase.from('vault_notes').select('id,title,content').eq('owner_id', auth.userId)
-              .order('sort_order', { ascending: true }),
-          ]);
-          if (samples.error || notes.error || !Array.isArray(samples.data) || !Array.isArray(notes.data)) {
+          const notes = await supabase.from('vault_notes').select('id,title,content')
+            .eq('owner_id', auth.userId)
+            .order('sort_order', { ascending: true });
+          if (notes.error || !Array.isArray(notes.data)) {
             return json({ error: 'Unable to load notes' }, 500);
           }
-          return json({ samples: displayRows(samples.data), notes: displayRows(notes.data) }, 200);
+          return json({ samples: [], notes: displayRows(notes.data) }, 200);
         }
 
         const body = await parseBody(request);
@@ -131,7 +128,7 @@ export function createNoteItemHandler({ env = process.env, createClient, verifyL
         const supabase = await database(env, createClient);
         if (request.method === 'GET') {
           const { data, error } = await supabase.from('vault_notes').select('id,title,content')
-            .eq('id', id).maybeSingle();
+            .eq('id', id).eq('owner_id', auth.userId).maybeSingle();
           if (error) return json({ error: 'Unable to load note' }, 500);
           if (!data) return json({ error: 'Note not found' }, 404);
           return json({ id: data.id, title: data.title, body: data.content }, 200);
@@ -141,14 +138,14 @@ export function createNoteItemHandler({ env = process.env, createClient, verifyL
           const fields = noteFields(await parseBody(request));
           if (!fields) return json({ error: 'Invalid note' }, 400);
           const { data, error } = await supabase.from('vault_notes').update(fields)
-            .eq('id', id).select('id').maybeSingle();
+            .eq('id', id).eq('owner_id', auth.userId).select('id,owner_id').maybeSingle();
           if (error) return json({ error: 'Unable to update note' }, 500);
-          if (!data) return json({ error: 'Note not found' }, 404);
+          if (!data || data.owner_id !== auth.userId) return json({ error: 'Note not found' }, 404);
           return json({ id: data.id }, 200);
         }
 
         const { data, error } = await supabase.from('vault_notes').delete()
-          .eq('id', id).select('id').maybeSingle();
+          .eq('id', id).eq('owner_id', auth.userId).select('id').maybeSingle();
         if (error) return json({ error: 'Unable to delete note' }, 500);
         if (!data) return json({ error: 'Note not found' }, 404);
         return new Response(null, { status: 204, headers: { 'Cache-Control': 'no-store' } });

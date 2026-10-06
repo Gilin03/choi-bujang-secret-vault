@@ -1,7 +1,9 @@
 // The bundle records the results of actual anonymous requests. It never
 // returns response bodies, note text, keys, or judge decisions.
 export async function runAttackChecks(config) {
-  if (config.step !== 3) throw new Error('이 단계의 공격 점검을 src/attack-check.mjs에 구현해 주세요.');
+  if (!Number.isInteger(config.step) || config.step < 3) {
+    throw new Error('3단계 이후의 공격 점검을 src/attack-check.mjs에 구현해 주세요.');
+  }
 
   let app;
   try {
