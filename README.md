@@ -83,6 +83,8 @@ git ls-tree -r --name-only origin/main | Select-String '(^|/)data\.json$'
 
 ## 1단계 시작 틀의 배포 정보
 
+빌드 산출물 `/aleph.json`에는 저장소·커밋·배포 주소와 `allowedRoutes`가 포함됩니다. 5단계부터는 쿼리 없는 HTTPS `originalApiUrl`도 기록합니다. 이 주소와 경로는 공개 설정이며 비밀값을 넣지 않습니다.
+
 `vercel.json`은 정적 화면을 `public`에서 배포하고, 루트 `api/notes.mjs`는 Vercel Node.js 함수로 배포합니다. 빌드 때 `public/aleph.json`에 저장소·커밋·배포 주소를 기록합니다. 이 식별 파일만으로 소유권이나 방어 성공을 인정하지 않습니다. `aleph.config.json`의 `judgeIssuer`는 운영 측 설정이므로 수정하지 않습니다.
 
 `npm run test:r5`와 `npm run build -- --local`은 로컬 연습용입니다. 실제 배포와 공개 HTTP 요청은 별도로 확인하고, 운영 심판의 판단으로 표현하지 마세요.

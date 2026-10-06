@@ -27,10 +27,33 @@ test('build identity uses Vercel Git and deployment metadata', () => {
     publicAppUrl: 'https://student-defense-123.vercel.app',
     judgeIssuer: config.judgeIssuer,
     sampleMarker: config.sampleMarker,
+    allowedRoutes: [],
+    originalApiUrl: null,
   });
-  assert.equal(deploymentIdentity(env, { ...config, step: 3 }).step, 3);
+  assert.equal(deploymentIdentity(env, {
+    ...config,
+    step: 3,
+    allowedRoutes: ['GET /api/notes'],
+  }).step, 3);
   assert.throws(() => deploymentIdentity({ ...env, VERCEL_GIT_PROVIDER: undefined }, config));
   assert.throws(() => deploymentIdentity({ ...env, VERCEL_GIT_COMMIT_SHA: 'short' }, config));
+});
+
+test('stage 5 deployment identity publishes allowed routes and the queryless original API URL', () => {
+  const stage5Config = {
+    ...config,
+    step: 5,
+    allowedRoutes: ['GET /api/notes', 'POST /api/notes'],
+    originalApiUrl: 'https://project.supabase.co/rest/v1/vault_notes',
+  };
+  const identity = deploymentIdentity(env, stage5Config);
+
+  assert.deepEqual(identity.allowedRoutes, stage5Config.allowedRoutes);
+  assert.equal(identity.originalApiUrl, stage5Config.originalApiUrl);
+  assert.throws(() => deploymentIdentity(env, {
+    ...stage5Config,
+    originalApiUrl: `${stage5Config.originalApiUrl}?select=*`,
+  }));
 });
 
 test('stage 4 attack checks verify anonymous API access is denied and static JSON is gone', async () => {

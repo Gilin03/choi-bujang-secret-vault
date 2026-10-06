@@ -3,6 +3,15 @@ const REPO = /^[A-Za-z0-9._-]{1,100}$/u;
 const SHA = /^[a-f0-9]{40}$/iu;
 const HOST = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.vercel\.app$/iu;
 
+function isQuerylessHttpsUrl(value) {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' && !url.search && !url.hash && !url.username && !url.password;
+  } catch {
+    return false;
+  }
+}
+
 export function deploymentIdentity(env, config) {
   const owner = env.VERCEL_GIT_REPO_OWNER;
   const repo = env.VERCEL_GIT_REPO_SLUG;
@@ -16,7 +25,11 @@ export function deploymentIdentity(env, config) {
       || typeof config.judgeIssuer !== 'string'
       || !/^https:\/\/[a-z0-9-]+\.up\.railway\.app\/defense\/judge$/iu.test(config.judgeIssuer)
       || typeof config.sampleMarker !== 'string'
-      || !/^[A-Z0-9_]{1,80}$/u.test(config.sampleMarker)) {
+      || !/^[A-Z0-9_]{1,80}$/u.test(config.sampleMarker)
+      || (config.step >= 3 && (!Array.isArray(config.allowedRoutes)
+        || config.allowedRoutes.length === 0
+        || config.allowedRoutes.some(route => typeof route !== 'string' || !route.trim())))
+      || (config.step >= 5 && !isQuerylessHttpsUrl(config.originalApiUrl))) {
     throw new Error('배포 식별 정보를 확인할 수 없습니다. Vercel 시스템 환경변수와 단계 설정을 확인하세요.');
   }
   return {
@@ -27,5 +40,7 @@ export function deploymentIdentity(env, config) {
     publicAppUrl: `https://${host.toLowerCase()}`,
     judgeIssuer: config.judgeIssuer,
     sampleMarker: config.sampleMarker,
+    allowedRoutes: config.allowedRoutes ?? [],
+    originalApiUrl: config.originalApiUrl ?? null,
   };
 }
