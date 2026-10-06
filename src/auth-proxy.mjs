@@ -146,9 +146,19 @@ function requestBody(body) {
 
 export function createVercelAuthProxyAdapter(options = {}) {
   const proxy = createSupabaseAuthProxy(options);
+  const endpoint = ['token', 'user', 'logout'].includes(options.endpoint) ? options.endpoint : null;
   return async function vercelAuthProxy(req, res) {
     try {
       const url = new URL(req.url || '/', 'https://vault.example');
+      if (endpoint) {
+        // Vercel may include a dynamic route parameter in req.url as a query
+        // value. Keep the fixed endpoint from this handler and remove only its
+        // synthetic parameter, while preserving legitimate Auth query values.
+        if (req.query?.endpoint === endpoint && url.searchParams.get('endpoint') === endpoint) {
+          url.searchParams.delete('endpoint');
+        }
+        url.pathname = `/api/auth-proxy/${endpoint}`;
+      }
       const body = requestBody(req.body);
       const request = new Request(`https://vault.example${url.pathname}${url.search}`, {
         method: req.method || 'GET',

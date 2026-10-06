@@ -126,6 +126,29 @@ test('the Vercel adapter preserves parsed JSON bodies and Auth response status',
   assert.equal(await forwarded.text(), '{"email":"student@example.test"}');
 });
 
+test('the Vercel adapter removes its dynamic route parameter before Auth query validation', async () => {
+  let upstreamCalls = 0;
+  const handler = createVercelAuthProxyAdapter({
+    endpoint: 'user',
+    env,
+    fetchImpl: async () => { upstreamCalls += 1; },
+  });
+  const output = { headers: {}, statusCode: 0,
+    setHeader(name, value) { this.headers[name.toLowerCase()] = value; },
+    end(body) { this.body = body.toString(); } };
+
+  await handler({
+    url: '/api/auth-proxy/user?endpoint=user',
+    method: 'GET',
+    query: { endpoint: 'user' },
+    headers: {},
+  }, output);
+
+  assert.equal(output.statusCode, 401);
+  assert.deepEqual(JSON.parse(output.body), { error: 'Authentication required' });
+  assert.equal(upstreamCalls, 0);
+});
+
 test('the browser fetch sends only Auth calls through the same-origin proxy', async () => {
   const calls = [];
   const fetchImpl = async request => {
