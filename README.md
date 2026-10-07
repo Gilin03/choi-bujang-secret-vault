@@ -89,4 +89,18 @@ git ls-tree -r --name-only origin/main | Select-String '(^|/)data\.json$'
 
 `npm run test:r5`와 `npm run build -- --local`은 로컬 연습용입니다. 실제 배포와 공개 HTTP 요청은 별도로 확인하고, 운영 심판의 판단으로 표현하지 마세요.
 
+## 보너스 XDR 무차별 로그인 연습
+
+- `npm run xdr:run -- brute-force`는 `xdr/fixtures/brute-force.json`의 가상 Wazuh 경보를 읽어 `xdr/brute-force/result.json`과 차단 후보 파일을 갱신합니다. 원본 fixture는 변경하지 않습니다. `read-alerts.mjs`는 시각·출발 주소·계정·규칙 수준·설명만 뽑고, JSON·이스케이프·공백이 들어간 자격 증명, 개인키, 이메일처럼 보이는 값도 가립니다. 알려지지 않은 형식의 실제 비밀값·개인정보를 이 연습에 넣지 마세요.
+- `patterns.json`은 MITRE ATT&CK T1110 계열의 계정 실패 폭주와 여러 계정에 걸친 같은 비밀번호 대입 신호를 정리합니다. 같은 비밀번호는 원문 대신 Wazuh가 제공하는 비가역 `credential_fingerprint`로만 비교하며 그 값은 결과·로그에 쓰지 않습니다.
+- 같은 계정 실패 기준은 120초 안에 5회, 같은 주소의 광범위한 실패 기준은 120초 안에 8회, 여러 계정의 같은 지문 기준은 300초 안에 3개 계정입니다. 시간 범위는 `patterns.json`에서 초 단위로 읽습니다. Wazuh 인증 실패/성공 그룹 또는 명시적인 인증·로그인 설명으로 사건을 구분하고, 파일 전송 등 다른 실패는 집계하지 않습니다. 같은 IPv6 주소의 축약·확장 표기는 집계와 차단 검사에서 동일하게 처리합니다. 명확한 지문 분산은 차단 후보가 되고, 같은 계정·주소 폭주는 `JEV_REVIEW_URL`이 설정된 경우 Jev에 확신도를 묻습니다. 연결 실패·응답 누락·잘못된 확신도는 `alert`로 남깁니다.
+- 같은 입력 묶음에서 정상/성공 로그인이 관측된 주소는 전체 주소 차단의 위험이 있어, 차단 후보를 `alert`로 낮추고 deny rule에 넣지 않습니다. 성공 로그인이 보이지 않은 공유 주소의 정상 사용자까지 보호됐다는 뜻은 아닙니다. 실시간 적용에는 운영 측의 검증된 공유 주소 정보와 정상 사용자 보호 정책이 필요합니다.
+- 새 알림 로그는 `alert`·`block`만 한 줄씩 추가하며, 같은 판정의 재실행은 중복 기록하지 않습니다. 기존 로그는 이력으로 보존합니다. 전체 `record` 사건은 `result.json`에 남습니다. 차단 규칙에는 15분 만료 시각과 근거 경보 번호가 있습니다. 연습 재실행은 시험 규칙의 만료를 다시 설정하므로 운영 규칙 저장소로 사용하지 마세요.
+- `src/decider-xdr.mjs`의 `decideWithXdr`는 검증된 출발 주소를 `decide(request)` 계약 바깥 인자로 받아 XDR deny rule을 먼저 확인한 다음, 차단되지 않은 요청만 기존 판정기에 넘깁니다. 주소가 없거나 규칙 파일의 형식이 잘못되면 오류를 냅니다. 다른 판정기에 붙일 때는 `createXdrGate(existingDecide)`를 사용하고, 운영 엔진이 확인한 요청과 주소만 전달해야 합니다. 반환의 `xdr.action === 'deny'`를 집행하고, `continue`이면 `decision`의 기존 판정을 집행하는 호출 코드가 별도로 필요합니다.
+- 기존 판정기 `src/decider.mjs`와 `aleph.config.json`은 변경하지 않았습니다. 현재 기본 판정기는 모든 요청을 `deny`합니다. `result.json`의 `normalBlockedCount`는 XDR 주소 차단만 셉니다. 최종 정상 요청 허용 여부는 `ztnaPrecheck.normalRequestAllowed`와 `normalPolicyDecision`으로 별도 표시합니다. 현재 기본 규칙의 최종 `deny`를 XDR 통과와 혼동하지 마세요.
+- 회귀 점검은 `node --test test/xdr-brute-force.test.mjs`입니다. 정상 요청을 허용하는 가상 정책을 연결한 시험에서는 정상 요청 허용과 공격 주소 거부를 함께 확인하지만, 이는 현재 기본 판정기의 허용이나 운영 엔진 연결을 증명하지 않습니다.
+- 입력 JSON 파싱 오류는 `invalid_xdr_json`처럼 고정 코드로만 표시하고 원본 내용을 출력하지 않습니다. 규칙 항목의 주소·만료·근거 경보·패턴이 잘못됐으면 `invalid_xdr_deny_rules`로 중단합니다. 첫 오류의 입력 형식만 바로잡은 뒤 같은 명령을 다시 실행하세요.
+- 2026-10-07 저장점 점검: 가상 경보 17건에서 `block 1 · alert 2 · record 14`, XDR 정상 이벤트 차단 0건이며 회귀 시험 28개가 통과했습니다. 전체 자동 탐색 검사에는 기존 6·9단계 시작 틀의 미구현 연습 실패 2개가 남아 있습니다. 설정은 5단계이며 허용 경로·로그인 발급자/JWKS·원본 API 형식을 구현과 대조했습니다. 실제 배포 주소의 식별 파일 조회는 연결 실패로 미확인이고, 실제 Wazuh/Jev/ZTNA 연결도 미확인입니다. 기존 판정기 최종 정상 요청은 계속 `deny`입니다.
+- 이 명령은 가상 fixture 연습이며 실시간 Wazuh 전달, 실제 접속 차단, Jev 응답, 운영 심판 판정의 증거가 아닙니다. 화면에서 확인할 파일은 `xdr/brute-force/result.json`, `xdr/alerts.log`, `xdr/brute-force/deny-rules.json`입니다.
+
 먼저 [AGENTS.md](AGENTS.md)를 읽고 한 번에 한 단계만 요청하세요. `src/decider.mjs`와 `src/detect.mjs`의 로컬 시험은 가상 요청·사건 연습이며 반 엔진이나 운영 심판의 결과가 아닙니다. `aleph.defense.submission.v2` 제출 묶음 계약은 `scripts/bundle.mjs`가 관리합니다.

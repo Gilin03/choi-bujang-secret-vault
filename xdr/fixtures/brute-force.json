@@ -1,0 +1,104 @@
+[
+  {
+    "id": "wazuh-bf-account-01",
+    "timestamp": "2026-10-07T00:00:00.000Z",
+    "rule": { "id": "5710", "level": 5, "description": "sshd: authentication failure" },
+    "data": { "srcip": "198.51.100.21", "srcuser": "admin_fixture" }
+  },
+  {
+    "id": "wazuh-bf-account-02",
+    "timestamp": "2026-10-07T00:00:10.000Z",
+    "rule": { "id": "5710", "level": 5, "description": "sshd: authentication failure" },
+    "data": { "srcip": "198.51.100.21", "srcuser": "admin_fixture" }
+  },
+  {
+    "id": "wazuh-bf-account-03",
+    "timestamp": "2026-10-07T00:00:20.000Z",
+    "rule": { "id": "5710", "level": 5, "description": "sshd: authentication failure" },
+    "data": { "srcip": "198.51.100.21", "srcuser": "admin_fixture" }
+  },
+  {
+    "id": "wazuh-bf-account-04",
+    "timestamp": "2026-10-07T00:00:30.000Z",
+    "rule": { "id": "5710", "level": 5, "description": "sshd: authentication failure" },
+    "data": { "srcip": "198.51.100.21", "srcuser": "admin_fixture" }
+  },
+  {
+    "id": "wazuh-bf-account-05",
+    "timestamp": "2026-10-07T00:00:40.000Z",
+    "rule": { "id": "5710", "level": 5, "description": "sshd: authentication failure" },
+    "data": { "srcip": "198.51.100.21", "srcuser": "admin_fixture" }
+  },
+  {
+    "id": "wazuh-bf-spray-01",
+    "timestamp": "2026-10-07T00:01:00.000Z",
+    "rule": { "id": "5710", "level": 5, "description": "sshd: authentication failure" },
+    "data": { "srcip": "203.0.113.77", "srcuser": "alice_fixture", "credential_fingerprint": "fixture-correlation-a" }
+  },
+  {
+    "id": "wazuh-bf-spray-02",
+    "timestamp": "2026-10-07T00:01:10.000Z",
+    "rule": { "id": "5710", "level": 5, "description": "sshd: authentication failure" },
+    "data": { "srcip": "203.0.113.77", "srcuser": "bob_fixture", "credential_fingerprint": "fixture-correlation-a" }
+  },
+  {
+    "id": "wazuh-bf-spray-03",
+    "timestamp": "2026-10-07T00:01:20.000Z",
+    "rule": { "id": "5710", "level": 5, "description": "sshd: authentication failure" },
+    "data": { "srcip": "203.0.113.77", "srcuser": "carol_fixture", "credential_fingerprint": "fixture-correlation-a" }
+  },
+  {
+    "id": "wazuh-bf-source-01",
+    "timestamp": "2026-10-07T00:02:00.000Z",
+    "rule": { "id": "5710", "level": 5, "description": "sshd: authentication failure" },
+    "data": { "srcip": "198.51.100.35", "srcuser": "user01_fixture" }
+  },
+  {
+    "id": "wazuh-bf-source-02",
+    "timestamp": "2026-10-07T00:02:10.000Z",
+    "rule": { "id": "5710", "level": 5, "description": "sshd: authentication failure" },
+    "data": { "srcip": "198.51.100.35", "srcuser": "user02_fixture" }
+  },
+  {
+    "id": "wazuh-bf-source-03",
+    "timestamp": "2026-10-07T00:02:20.000Z",
+    "rule": { "id": "5710", "level": 5, "description": "sshd: authentication failure" },
+    "data": { "srcip": "198.51.100.35", "srcuser": "user03_fixture" }
+  },
+  {
+    "id": "wazuh-bf-source-04",
+    "timestamp": "2026-10-07T00:02:30.000Z",
+    "rule": { "id": "5710", "level": 5, "description": "sshd: authentication failure" },
+    "data": { "srcip": "198.51.100.35", "srcuser": "user04_fixture" }
+  },
+  {
+    "id": "wazuh-bf-source-05",
+    "timestamp": "2026-10-07T00:02:40.000Z",
+    "rule": { "id": "5710", "level": 5, "description": "sshd: authentication failure" },
+    "data": { "srcip": "198.51.100.35", "srcuser": "user05_fixture" }
+  },
+  {
+    "id": "wazuh-bf-source-06",
+    "timestamp": "2026-10-07T00:02:50.000Z",
+    "rule": { "id": "5710", "level": 5, "description": "sshd: authentication failure" },
+    "data": { "srcip": "198.51.100.35", "srcuser": "user06_fixture" }
+  },
+  {
+    "id": "wazuh-bf-source-07",
+    "timestamp": "2026-10-07T00:03:00.000Z",
+    "rule": { "id": "5710", "level": 5, "description": "sshd: authentication failure" },
+    "data": { "srcip": "198.51.100.35", "srcuser": "user07_fixture" }
+  },
+  {
+    "id": "wazuh-bf-source-08",
+    "timestamp": "2026-10-07T00:03:10.000Z",
+    "rule": { "id": "5710", "level": 5, "description": "sshd: authentication failure" },
+    "data": { "srcip": "198.51.100.35", "srcuser": "user08_fixture" }
+  },
+  {
+    "id": "wazuh-bf-normal-01",
+    "timestamp": "2026-10-07T00:04:00.000Z",
+    "rule": { "id": "5711", "level": 3, "description": "sshd: authentication accepted" },
+    "data": { "srcip": "192.0.2.44", "srcuser": "learner_fixture" }
+  }
+]
