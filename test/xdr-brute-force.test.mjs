@@ -77,6 +77,7 @@ test('decide alerts on an ambiguous source burst when Jev is unavailable', async
         sameSourceFailures: 8,
         sameAccountFailures: 1,
         sameCredentialAccountCount: 1,
+        sourceHasNormalLogin: true,
       },
     });
 
@@ -411,11 +412,24 @@ test('equivalent IPv6 spellings match the same deny rule', () => {
   assert.equal(isSourceDenied('2001:db8::1', rules, now), true);
 });
 
+test('decide blocks a high-volume source-only burst only when no normal login shares the address', async () => {
+  const decider = createDecider();
+  const blocked = await decider.decide({ ruleLevel: 5,
+    patternSignals: { isLoginFailure: true, sameSourceFailures: 8, sameAccountFailures: 1,
+      sameCredentialAccountCount: 0, sourceHasNormalLogin: false } });
+  assert.deepEqual(blocked, { action: 'block', confidence: 0.9, reason: 'same-source-failure-burst' });
+
+  const shared = await createDecider().decide({ ruleLevel: 5,
+    patternSignals: { isLoginFailure: true, sameSourceFailures: 8, sameAccountFailures: 1,
+      sameCredentialAccountCount: 0, sourceHasNormalLogin: true } });
+  assert.equal(shared.action, 'alert');
+});
+
 test('the public decide(alert) entry point correlates raw Wazuh alerts without private patternSignals', async () => {
   const rawAlerts = JSON.parse(readFileSync(join(import.meta.dirname, '../xdr/fixtures/brute-force.json'), 'utf8'));
   const counts = { block: 0, alert: 0, record: 0 };
   for (const alert of rawAlerts) counts[(await decide(alert)).action] += 1;
-  assert.deepEqual(counts, { block: 2, alert: 1, record: 14 });
+  assert.deepEqual(counts, { block: 3, alert: 0, record: 14 });
 });
 
 test('a decider instance correlates the five-field readAlerts rows as a stream', async () => {
@@ -423,7 +437,7 @@ test('a decider instance correlates the five-field readAlerts rows as a stream',
   const decider = createDecider();
   const counts = { block: 0, alert: 0, record: 0 };
   for (const alert of readAlerts(rawAlerts)) counts[(await decider.decide(alert)).action] += 1;
-  assert.deepEqual(counts, { block: 1, alert: 1, record: 15 });
+  assert.deepEqual(counts, { block: 2, alert: 0, record: 15 });
 });
 
 test('IPv6 variants correlate and a success on the same IPv6 protects the whole address', (t) => {

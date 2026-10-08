@@ -92,6 +92,9 @@ async function decideWithSignals(alert, signals) {
   if (sameAccountFailures >= sameAccount.minimumCount && signals.sourceHasNormalLogin === false) {
     return outcome('block', 0.95, sameAccount.name);
   }
+  if (sameSourceFailures >= sameSource.minimumCount && signals.sourceHasNormalLogin === false) {
+    return outcome('block', 0.9, sameSource.name);
+  }
   const matchedPattern = sameAccountFailures >= sameAccount.minimumCount ? sameAccount
     : sameSourceFailures >= sameSource.minimumCount ? sameSource : null;
   if (matchedPattern) {
