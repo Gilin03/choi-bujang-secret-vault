@@ -70,6 +70,9 @@ export async function decide(alert) {
     if (signals.sourceHasNormalLogin === true) return outcome('alert', 0.72, spray.name);
     return outcome('block', 0.98, spray.name);
   }
+  if (sameAccountFailures >= sameAccount.minimumCount && signals.sourceHasNormalLogin === false) {
+    return outcome('block', 0.95, sameAccount.name);
+  }
   const matchedPattern = sameAccountFailures >= sameAccount.minimumCount ? sameAccount
     : sameSourceFailures >= sameSource.minimumCount ? sameSource : null;
   if (matchedPattern) {

@@ -45,6 +45,26 @@ test('decide blocks a repeated credential fingerprint across accounts', async ()
   });
 });
 
+test('decide blocks a five-failure same-account burst when no normal login shares the source', async () => {
+  const result = await decide({
+    timestamp: stamp,
+    ruleLevel: 5,
+    patternSignals: {
+      isLoginFailure: true,
+      sameSourceFailures: 5,
+      sameAccountFailures: 5,
+      sameCredentialAccountCount: 0,
+      sourceHasNormalLogin: false,
+    },
+  });
+
+  assert.deepEqual(result, {
+    action: 'block',
+    confidence: 0.95,
+    reason: 'same-account-failure-burst',
+  });
+});
+
 test('decide alerts on an ambiguous source burst when Jev is unavailable', async () => {
   const oldReviewUrl = process.env.JEV_REVIEW_URL;
   delete process.env.JEV_REVIEW_URL;
@@ -223,12 +243,12 @@ test('hour-separated credential attempts do not create a deny rule', (t) => {
   assert.equal(rules.length, 0);
 });
 
-for (const [lastSecond, expectedAlerts] of [[120, 1], [121, 0]]) {
+for (const [lastSecond, expectedBlocks] of [[120, 1], [121, 0]]) {
   test(`same-account window ends at 120 seconds: last attempt at ${lastSecond}`, (t) => {
     const { result } = runIsolated(t, [0, 1, 2, 3, lastSecond].map((s, i) =>
       syntheticAlert(i, s, { account: 'same_user_fixture' })));
-    assert.equal(result.counts.alert, expectedAlerts);
-    assert.equal(result.counts.block, 0);
+    assert.equal(result.counts.block, expectedBlocks);
+    assert.equal(result.counts.alert, 0);
   });
 }
 

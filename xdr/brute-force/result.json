@@ -3,15 +3,15 @@
   "alertCount": 17,
   "extractedLineCount": 17,
   "counts": {
-    "block": 1,
-    "alert": 2,
+    "block": 2,
+    "alert": 1,
     "record": 14
   },
   "normalEventCount": 1,
   "normalBlockedCount": 0,
-  "denyRuleCount": 1,
+  "denyRuleCount": 2,
   "ztnaPrecheck": {
-    "deniedEventCount": 3,
+    "deniedEventCount": 8,
     "normalEventAction": "continue",
     "normalPolicyDecision": "deny",
     "normalRequestAllowed": false,
@@ -74,8 +74,8 @@
       "ruleLevel": 5,
       "description": "sshd: authentication failure",
       "eventType": "login_failure",
-      "action": "alert",
-      "confidence": 0.5,
+      "action": "block",
+      "confidence": 0.95,
       "reason": "same-account-failure-burst"
     },
     {
