@@ -17,3 +17,20 @@
 {"schema":"aleph.xdr.alert.v1","timestamp":"2026-09-27T04:02:16.000Z","alertId":"bf-17","action":"alert","confidence":0.5}
 {"schema":"aleph.xdr.alert.v1","timestamp":"2026-09-27T05:05:27.000Z","alertId":"bf-18","action":"alert","confidence":0.5}
 {"schema":"aleph.xdr.alert.v1","timestamp":"2026-09-27T06:12:09.000Z","alertId":"bf-19","action":"alert","confidence":0.5}
+{"schema":"aleph.xdr.alert.v1","moduleKey":"web-injection","timestamp":"2026-09-27T00:13:01.000Z","alertId":"wi-01","action":"block","confidence":0.95,"reason":"요청 인자 안의 SQL 구문: 같은 출발지의 반복·고위험 주입 신호"}
+{"schema":"aleph.xdr.alert.v1","moduleKey":"web-injection","timestamp":"2026-09-27T00:13:20.000Z","alertId":"wi-02","action":"block","confidence":0.95,"reason":"요청 인자 안의 스크립트 태그: 같은 출발지의 반복·고위험 주입 신호"}
+{"schema":"aleph.xdr.alert.v1","moduleKey":"web-injection","timestamp":"2026-09-27T00:16:04.000Z","alertId":"wi-03","action":"block","confidence":0.95,"reason":"반복 경로 거슬러 올라가기(../): 같은 출발지의 반복·고위험 주입 신호"}
+{"schema":"aleph.xdr.alert.v1","moduleKey":"web-injection","timestamp":"2026-09-27T01:02:11.000Z","alertId":"wi-04","action":"block","confidence":0.95,"reason":"요청 인자 안의 SQL 구문: 같은 출발지의 반복·고위험 주입 신호"}
+{"schema":"aleph.xdr.alert.v1","moduleKey":"web-injection","timestamp":"2026-09-27T01:18:33.000Z","alertId":"wi-05","action":"block","confidence":0.95,"reason":"요청 인자 안의 SQL 구문: 같은 출발지의 반복·고위험 주입 신호"}
+{"schema":"aleph.xdr.alert.v1","moduleKey":"web-injection","timestamp":"2026-09-27T02:07:08.000Z","alertId":"wi-06","action":"block","confidence":0.95,"reason":"요청 인자 안의 SQL 구문: 같은 출발지의 반복·고위험 주입 신호"}
+{"schema":"aleph.xdr.alert.v1","moduleKey":"web-injection","timestamp":"2026-09-27T04:04:19.000Z","alertId":"wi-07","action":"block","confidence":0.95,"reason":"반복 경로 거슬러 올라가기(../): 같은 출발지의 반복·고위험 주입 신호"}
+{"schema":"aleph.xdr.alert.v1","moduleKey":"web-injection","timestamp":"2026-09-27T05:26:02.000Z","alertId":"wi-08","action":"block","confidence":0.95,"reason":"요청 인자 안의 SQL 구문: 같은 출발지의 반복·고위험 주입 신호"}
+{"schema":"aleph.xdr.alert.v1","moduleKey":"web-injection","timestamp":"2026-09-27T00:22:14.000Z","alertId":"wi-09","action":"alert","confidence":0.55,"reason":"MITRE T1190 외부 공개 앱 악용 검토: 차단 기준 미충족, 검토 필요"}
+{"schema":"aleph.xdr.alert.v1","moduleKey":"web-injection","timestamp":"2026-09-27T00:36:40.000Z","alertId":"wi-10","action":"alert","confidence":0.55,"reason":"MITRE T1190 외부 공개 앱 악용 검토: 차단 기준 미충족, 검토 필요"}
+{"schema":"aleph.xdr.alert.v1","moduleKey":"web-injection","timestamp":"2026-09-27T01:11:06.000Z","alertId":"wi-11","action":"alert","confidence":0.55,"reason":"MITRE T1190 외부 공개 앱 악용 검토: 차단 기준 미충족, 검토 필요"}
+{"schema":"aleph.xdr.alert.v1","moduleKey":"web-injection","timestamp":"2026-09-27T01:44:18.000Z","alertId":"wi-12","action":"alert","confidence":0.55,"reason":"MITRE T1190 외부 공개 앱 악용 검토: 차단 기준 미충족, 검토 필요"}
+{"schema":"aleph.xdr.alert.v1","moduleKey":"web-injection","timestamp":"2026-09-27T02:20:09.000Z","alertId":"wi-13","action":"alert","confidence":0.55,"reason":"MITRE T1190 외부 공개 앱 악용 검토: 차단 기준 미충족, 검토 필요"}
+{"schema":"aleph.xdr.alert.v1","moduleKey":"web-injection","timestamp":"2026-09-27T03:08:27.000Z","alertId":"wi-14","action":"alert","confidence":0.55,"reason":"MITRE T1190 외부 공개 앱 악용 검토: 차단 기준 미충족, 검토 필요"}
+{"schema":"aleph.xdr.alert.v1","moduleKey":"web-injection","timestamp":"2026-09-27T04:15:03.000Z","alertId":"wi-15","action":"alert","confidence":0.55,"reason":"MITRE T1190 외부 공개 앱 악용 검토: 차단 기준 미충족, 검토 필요"}
+{"schema":"aleph.xdr.alert.v1","moduleKey":"web-injection","timestamp":"2026-09-27T05:09:50.000Z","alertId":"wi-16","action":"alert","confidence":0.55,"reason":"MITRE T1190 외부 공개 앱 악용 검토: 차단 기준 미충족, 검토 필요"}
+{"schema":"aleph.xdr.alert.v1","moduleKey":"web-injection","timestamp":"2026-09-27T06:18:12.000Z","alertId":"wi-17","action":"alert","confidence":0.55,"reason":"MITRE T1190 외부 공개 앱 악용 검토: 차단 기준 미충족, 검토 필요"}

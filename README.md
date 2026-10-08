@@ -95,6 +95,10 @@ git ls-tree -r --name-only origin/main | Select-String '(^|/)data\.json$'
 - `xdr/brute-force/patterns.json`은 MITRE ATT&CK T1110의 반복 로그인 실패와 T1110.003의 password spraying 두 패턴만 근거와 함께 기록합니다. `decide.mjs`는 분명한 공격을 `block`, 애매한 신호를 `alert`, 정상 이벤트를 `record`로 분류합니다. Jev 연결이 없거나 실패하면 애매한 신호는 `alert`로 남습니다.
 - `npm run xdr:run -- brute-force`는 결정 결과를 `xdr/brute-force/result.json`에 쓰고 block·alert·record 건수와 아래 XDR 게이트 결과를 출력합니다. 차단 후보만 `xdr/brute-force/deny-rules.json`에 넣으며 각 규칙에 출발 주소, 만료 시각, 근거 경보 ID, 확신도를 둡니다. 만료는 실행 시각부터 15분입니다.
 - 실행기는 fixture의 출발 주소를 `src/decider-with-xdr.mjs`에 전달해 활성 차단 규칙을 확인한 뒤, 차단되지 않은 요청은 기존 `src/decider.mjs`로 넘깁니다. 이 어댑터는 ZTNA 판정 앞에 추가하는 게이트이며 기존 판정기를 대체하지 않습니다. `src/decider.mjs`와 Aleph 요청·응답 계약은 바꾸지 않았습니다.
-- `xdr/alerts.log`에는 block·alert 경보 ID, 시각, 행동, 확신도만 한 줄씩 남깁니다. 계정·경보 설명·토큰 등은 기록하지 않으며 같은 fixture를 다시 실행해도 같은 항목을 중복 추가하지 않습니다.
+- `xdr/alerts.log`에는 block·alert 메타데이터를 한 줄씩 남깁니다. 계정·경보 설명·토큰은 기록하지 않으며 웹 주입 항목에는 모듈 키와 고정된 안전 사유를 덧붙입니다. 같은 fixture를 재실행해도 같은 항목은 중복되지 않습니다.
 - 현재 반 엔진/배포 요청 경로의 판정 계약에는 출발 IP가 없으므로 어댑터는 실제 운영 경로에는 연결되어 있지 않습니다. fixture 연습은 네트워크를 호출하지 않으며 실제 Wazuh 스트림, Jev 서비스, 운영 ZTNA 차단을 의미하지 않습니다. 실제 개인정보나 비밀값을 넣지 마세요.
+- 웹 주입 연습의 `xdr/fixtures/web-injection.json`에는 26개 가상 Wazuh 형식 경보가 있습니다. `xdr/web-injection/read-alerts.mjs`는 확인용으로 다섯 허용 필드만 추출·비밀값 마스킹하며, 단독 실행용 `decide.mjs`는 이 읽기 모듈을 불러오지 않습니다.
+- `xdr/web-injection/patterns.json`에는 MITRE ATT&CK T1190 근거와 함께 요청 인자의 SQL 구문, 스크립트 태그, 반복 `../` 경로 이탈 세 신호와 세부 패턴이 불확실할 때 쓰는 검토 전용 fallback을 기록합니다. 강한 패턴·반복 횟수·심각도·유효 출발 주소가 함께 확인될 때만 block, T1190 검토 경보는 alert, 정상 이벤트는 record입니다.
+- `npm run xdr:run -- web-injection`은 `xdr/web-injection/result.json`과 15분 뒤 만료되는 `deny-rules.json`을 만들고 fixture 출발 주소를 기존 `src/decider-with-xdr.mjs` 사전 차단 게이트에 넣어 결과를 출력합니다. `respond.mjs`는 block 후보 규칙과 block·alert 로그만 `xdr/alerts.log`에 추가하며, 같은 경보를 재실행해도 중복 기록하지 않습니다.
+- 이 게이트는 fixture 실행기의 연결입니다. 운영 요청 계약에는 출발 IP가 없으므로 실제 서비스 트래픽의 Wazuh 수집이나 운영 ZTNA 차단이 연결된 것은 아닙니다.
 먼저 [AGENTS.md](AGENTS.md)를 읽고 한 번에 한 단계만 요청하세요. `src/decider.mjs`와 `src/detect.mjs`의 로컬 시험은 가상 요청·사건 연습이며 반 엔진이나 운영 심판의 결과가 아닙니다. `aleph.defense.submission.v2` 제출 묶음 계약은 `scripts/bundle.mjs`가 관리합니다.

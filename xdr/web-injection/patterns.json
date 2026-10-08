@@ -1,0 +1,33 @@
+{
+  "schema": "aleph.xdr.patterns.v1",
+  "patterns": [
+    {
+      "id": "sql_request_argument",
+      "name": "요청 인자 안의 SQL 구문",
+      "condition": "요청 인자에 UNION SELECT, 조건식과 주석, SQL 명령 이어 붙이기처럼 조합된 SQL 구문이 있고 같은 출발지에서 반복됩니다. select 같은 단어 하나만으로는 일치시키지 않습니다.",
+      "evidence": "MITRE ATT&CK T1190은 외부 공개 애플리케이션의 입력 처리 취약점을 악용하는 신호를 다룹니다.",
+      "source": "https://attack.mitre.org/techniques/T1190/"
+    },
+    {
+      "id": "script_tag_injection",
+      "name": "요청 인자 안의 스크립트 태그",
+      "condition": "요청 인자에 실제 또는 HTML 인코딩된 script 시작 태그가 있고 같은 출발지에서 반복됩니다. script라는 단어만으로는 일치시키지 않습니다.",
+      "evidence": "MITRE ATT&CK T1190은 외부 공개 애플리케이션을 통한 입력 악용을 설명하며, 삽입된 태그는 웹 요청에서 확인할 구체 신호입니다.",
+      "source": "https://attack.mitre.org/techniques/T1190/"
+    },
+    {
+      "id": "repeated_path_traversal",
+      "name": "반복 경로 거슬러 올라가기(../)",
+      "condition": "요청 인자에 ../ 또는 인코딩된 동등 표기가 반복되어 경로 경계를 벗어나려 합니다.",
+      "evidence": "MITRE ATT&CK T1190은 외부 공개 애플리케이션의 경로 처리 입력을 악용하는 신호와 부합합니다.",
+      "source": "https://attack.mitre.org/techniques/T1190/"
+    },
+    {
+      "id": "t1190_review_fallback",
+      "name": "MITRE T1190 외부 공개 앱 악용 검토",
+      "condition": "MITRE T1190 경보가 있으나 위 세부 입력 패턴이 뚜렷하지 않으면 차단하지 않고 검토 알림으로 남깁니다.",
+      "evidence": "MITRE ATT&CK T1190은 외부 공개 애플리케이션 악용을 기술하므로 세부 패턴이 불확실한 경보도 검토 대상으로 남깁니다.",
+      "source": "https://attack.mitre.org/techniques/T1190/"
+    }
+  ]
+}

@@ -67,6 +67,9 @@ export async function runXdr({ root, moduleKey, writeError = (line) => console.e
       rules: denyRules,
     }, null, 2)}\n`, 'utf8');
     await updateAlertLog(root, fixture.alerts, decisions);
+  } else if (moduleKey === 'web-injection') {
+    const effects = await import(pathToFileURL(join(root, 'xdr', moduleKey, 'respond.mjs')).href);
+    await effects.writeResponseArtifacts({ root, alerts: fixture.alerts, decisions });
   }
   return result;
 }
@@ -93,6 +96,34 @@ export async function evaluateBruteForceGate({ root, now = new Date() }) {
     counts[result.gate.action] += 1;
     const isNormal = !Array.isArray(alert?.rule?.mitre) || !alert.rule.mitre.includes('T1110');
     if (isNormal && result.gate.action === 'deny') counts.normalDenied += 1;
+  }
+  return counts;
+}
+
+export async function evaluateWebInjectionGate({ root, now = new Date() }) {
+  const fixture = JSON.parse(await readFile(join(root, 'xdr', 'fixtures', 'web-injection.json'), 'utf8'));
+  const result = JSON.parse(await readFile(join(root, 'xdr', 'web-injection', 'result.json'), 'utf8'));
+  const ruleSet = JSON.parse(await readFile(join(root, 'xdr', 'web-injection', 'deny-rules.json'), 'utf8'));
+  if (ruleSet.schema !== 'aleph.xdr.deny-rules.v1' || !Array.isArray(ruleSet.rules)) {
+    throw new Error('XDR 거부 규칙 형식이 아닙니다.');
+  }
+  const [{ decideWithXdr }, { fixtureRequests }] = await Promise.all([
+    import(pathToFileURL(join(root, 'src', 'decider-with-xdr.mjs')).href),
+    import(pathToFileURL(join(root, 'scripts', 'fixture-7.mjs')).href),
+  ]);
+  const baseRequest = fixtureRequests().normal;
+  const decisionsById = new Map(result.decisions.map((decision) => [decision.alertId, decision]));
+  const counts = { deny: 0, continue: 0, normalDenied: 0 };
+
+  for (const alert of fixture.alerts) {
+    const decision = decisionsById.get(alert?.id);
+    const result = await decideWithXdr({ ...baseRequest, requestId: randomUUID() }, {
+      sourceAddress: alert?.data?.srcip,
+      denyRules: ruleSet.rules,
+      now,
+    });
+    counts[result.gate.action] += 1;
+    if (decision?.action === 'record' && result.gate.action === 'deny') counts.normalDenied += 1;
   }
   return counts;
 }
@@ -151,6 +182,10 @@ if (isMain) {
     if (process.argv[2] === 'brute-force') {
       const result = JSON.parse(await readFile(join(root, 'xdr', 'brute-force', 'result.json'), 'utf8'));
       const gate = await evaluateBruteForceGate({ root });
+      console.log(`block ${result.counts.block} · alert ${result.counts.alert} · record ${result.counts.record} · XDR gate deny ${gate.deny} · continue ${gate.continue} · 정상 XDR 차단 ${gate.normalDenied}건`);
+    } else if (process.argv[2] === 'web-injection') {
+      const result = JSON.parse(await readFile(join(root, 'xdr', 'web-injection', 'result.json'), 'utf8'));
+      const gate = await evaluateWebInjectionGate({ root });
       console.log(`block ${result.counts.block} · alert ${result.counts.alert} · record ${result.counts.record} · XDR gate deny ${gate.deny} · continue ${gate.continue} · 정상 XDR 차단 ${gate.normalDenied}건`);
     }
   } catch (error) {
