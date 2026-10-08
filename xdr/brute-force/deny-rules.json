@@ -1,0 +1,106 @@
+{
+  "schema": "aleph.xdr.deny-rules.v1",
+  "generatedAt": "2026-10-08T02:05:54.996Z",
+  "rules": [
+    {
+      "id": "xdr-bruteforce-bf-01",
+      "action": "deny",
+      "sourceAddress": "203.0.113.10",
+      "createdAt": "2026-10-08T02:05:54.995Z",
+      "expiresAt": "2026-10-08T02:20:54.995Z",
+      "evidenceAlertId": "bf-01",
+      "confidence": 0.95,
+      "reason": "T1110 clear repeated-login-failure signal"
+    },
+    {
+      "id": "xdr-bruteforce-bf-02",
+      "action": "deny",
+      "sourceAddress": "203.0.113.10",
+      "createdAt": "2026-10-08T02:05:54.995Z",
+      "expiresAt": "2026-10-08T02:20:54.995Z",
+      "evidenceAlertId": "bf-02",
+      "confidence": 0.95,
+      "reason": "T1110 clear repeated-login-failure signal"
+    },
+    {
+      "id": "xdr-bruteforce-bf-03",
+      "action": "deny",
+      "sourceAddress": "198.51.100.20",
+      "createdAt": "2026-10-08T02:05:54.995Z",
+      "expiresAt": "2026-10-08T02:20:54.995Z",
+      "evidenceAlertId": "bf-03",
+      "confidence": 0.95,
+      "reason": "T1110 clear repeated-login-failure signal"
+    },
+    {
+      "id": "xdr-bruteforce-bf-04",
+      "action": "deny",
+      "sourceAddress": "192.0.2.30",
+      "createdAt": "2026-10-08T02:05:54.995Z",
+      "expiresAt": "2026-10-08T02:20:54.995Z",
+      "evidenceAlertId": "bf-04",
+      "confidence": 0.95,
+      "reason": "T1110 clear repeated-login-failure signal"
+    },
+    {
+      "id": "xdr-bruteforce-bf-05",
+      "action": "deny",
+      "sourceAddress": "203.0.113.21",
+      "createdAt": "2026-10-08T02:05:54.995Z",
+      "expiresAt": "2026-10-08T02:20:54.995Z",
+      "evidenceAlertId": "bf-05",
+      "confidence": 0.95,
+      "reason": "T1110 clear repeated-login-failure signal"
+    },
+    {
+      "id": "xdr-bruteforce-bf-06",
+      "action": "deny",
+      "sourceAddress": "198.51.100.44",
+      "createdAt": "2026-10-08T02:05:54.995Z",
+      "expiresAt": "2026-10-08T02:20:54.995Z",
+      "evidenceAlertId": "bf-06",
+      "confidence": 0.95,
+      "reason": "T1110 clear repeated-login-failure signal"
+    },
+    {
+      "id": "xdr-bruteforce-bf-07",
+      "action": "deny",
+      "sourceAddress": "203.0.113.15",
+      "createdAt": "2026-10-08T02:05:54.995Z",
+      "expiresAt": "2026-10-08T02:20:54.995Z",
+      "evidenceAlertId": "bf-07",
+      "confidence": 0.95,
+      "reason": "T1110 clear repeated-login-failure signal"
+    },
+    {
+      "id": "xdr-bruteforce-bf-08",
+      "action": "deny",
+      "sourceAddress": "192.0.2.18",
+      "createdAt": "2026-10-08T02:05:54.995Z",
+      "expiresAt": "2026-10-08T02:20:54.995Z",
+      "evidenceAlertId": "bf-08",
+      "confidence": 0.95,
+      "reason": "T1110 clear repeated-login-failure signal"
+    },
+    {
+      "id": "xdr-bruteforce-bf-09",
+      "action": "deny",
+      "sourceAddress": "198.51.100.8",
+      "createdAt": "2026-10-08T02:05:54.995Z",
+      "expiresAt": "2026-10-08T02:20:54.995Z",
+      "evidenceAlertId": "bf-09",
+      "confidence": 0.95,
+      "reason": "T1110 clear repeated-login-failure signal"
+    },
+    {
+      "id": "xdr-bruteforce-bf-10",
+      "action": "deny",
+      "sourceAddress": "203.0.113.40",
+      "createdAt": "2026-10-08T02:05:54.995Z",
+      "expiresAt": "2026-10-08T02:20:54.995Z",
+      "evidenceAlertId": "bf-10",
+      "confidence": 0.95,
+      "reason": "T1110 clear repeated-login-failure signal"
+    }
+  ]
+}

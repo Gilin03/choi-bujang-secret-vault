@@ -38,15 +38,20 @@ test('가짜 decide 가 result.json 형식과 건수를 만듭니다', async () 
   const dir = await mkdtemp(join(tmpdir(), 'xdr-run-'));
   try {
     await mkdir(join(dir, 'scripts'), { recursive: true });
+    await mkdir(join(dir, 'src'), { recursive: true });
     await mkdir(join(dir, 'xdr', 'fixtures'), { recursive: true });
     await mkdir(join(dir, 'xdr', 'brute-force'), { recursive: true });
     await cp(join(root, 'scripts', 'xdr-run.mjs'), join(dir, 'scripts', 'xdr-run.mjs'));
+    await cp(join(root, 'scripts', 'fixture-7.mjs'), join(dir, 'scripts', 'fixture-7.mjs'));
+    await cp(join(root, 'src', 'decider.mjs'), join(dir, 'src', 'decider.mjs'));
+    await cp(join(root, 'src', 'decider-with-xdr.mjs'), join(dir, 'src', 'decider-with-xdr.mjs'));
+    await cp(join(root, 'xdr', 'brute-force', 'deny-rules.mjs'), join(dir, 'xdr', 'brute-force', 'deny-rules.mjs'));
     const alerts = ['a-block', 'a-alert', 'a-record', 'a-bad', 'a-throw'].map((id) => ({
       id,
       timestamp: '2026-09-27T09:00:00+09:00',
       agent: { name: 'choi-bujang-pc' },
-      rule: { level: 3, description: '시험 경보', mitre: [] },
-      data: { srcip: '192.0.2.10', srcuser: 'user01' },
+      rule: { level: id === 'a-block' ? 12 : 3, description: id === 'a-block' ? '반복 로그인 실패' : '시험 경보', mitre: id === 'a-block' ? ['T1110'] : [] },
+      data: { srcip: `192.0.2.${10 + ['a-block', 'a-alert', 'a-record', 'a-bad', 'a-throw'].indexOf(id)}`, srcuser: 'user01' },
     }));
     await writeFile(join(dir, 'xdr', 'fixtures', 'brute-force.json'), `${JSON.stringify({
       schema: 'aleph.xdr.fixture.v1', moduleKey: 'brute-force', alerts,
@@ -62,12 +67,15 @@ test('가짜 decide 가 result.json 형식과 건수를 만듭니다', async () 
     `);
     const child = spawn(process.execPath, ['scripts/xdr-run.mjs', 'brute-force'], { cwd: dir, windowsHide: true });
     let stderr = '';
+    let stdout = '';
     child.stderr.on('data', (chunk) => { stderr += chunk; });
+    child.stdout.on('data', (chunk) => { stdout += chunk; });
     const code = await new Promise((resolvePromise, reject) => {
       child.on('error', reject);
       child.on('exit', resolvePromise);
     });
     assert.equal(code, 0);
+    assert.match(stdout, /XDR gate deny 1 · continue 4 · 정상 XDR 차단 0건/u);
     assert.deepEqual(stderr.trim().split(/\r?\n/), ['형식 오류: a-bad', '형식 오류: a-throw']);
     const result = JSON.parse(await readFile(join(dir, 'xdr', 'brute-force', 'result.json'), 'utf8'));
     assert.equal(result.schema, 'aleph.xdr.result.v1');
@@ -78,6 +86,21 @@ test('가짜 decide 가 result.json 형식과 건수를 만듭니다', async () 
     assert.equal(typeof result.decisions[0].reason, 'string');
     assert.deepEqual(result.counts, { block: 1, alert: 1, record: 3 });
     assert.equal(result.counts.block + result.counts.alert + result.counts.record, result.decisions.length);
+    const rules = JSON.parse(await readFile(join(dir, 'xdr', 'brute-force', 'deny-rules.json'), 'utf8'));
+    assert.equal(rules.schema, 'aleph.xdr.deny-rules.v1');
+    assert.equal(rules.rules.length, 1);
+    assert.equal(rules.rules[0].evidenceAlertId, 'a-block');
+    const logPath = join(dir, 'xdr', 'alerts.log');
+    const firstLog = await readFile(logPath, 'utf8');
+    assert.deepEqual(firstLog.trim().split(/\r?\n/u).length, 2);
+    assert.doesNotMatch(firstLog, /user01|시험 경보/);
+    const second = spawn(process.execPath, ['scripts/xdr-run.mjs', 'brute-force'], { cwd: dir, windowsHide: true });
+    const secondCode = await new Promise((resolvePromise, reject) => {
+      second.on('error', reject);
+      second.on('exit', resolvePromise);
+    });
+    assert.equal(secondCode, 0);
+    assert.equal(await readFile(logPath, 'utf8'), firstLog);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

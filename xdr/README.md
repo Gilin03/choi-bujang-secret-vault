@@ -38,3 +38,5 @@ node scripts/xdr-run.mjs brute-force
 `npm run xdr:run -- brute-force` 도 같은 명령입니다. 실행기는 해당 경보마다 `decide` 를 부르고, 결과를 `xdr/<moduleKey>/result.json` 에 씁니다. 형식은 `aleph.xdr.result.v1` 이고, `decisions` 에는 경보 id·행동·확신도·이유가, `counts` 에는 `block`·`alert`·`record` 건수가 있습니다.
 
 반환 형식이 틀린 경보는 `record` 로 남고, 오류 한 줄이 출력됩니다. 실행기 자체는 네트워크를 쓰지 않습니다. 판정자는 격리된 환경에서 같은 명령을 다시 실행해 결과를 봅니다. 이미 커밋된 `result.json` 만으로 판정이 끝나지 않습니다.
+
+무차별 대입 연습에서 `npm run xdr:run -- brute-force`를 실행하면 `result.json`과 함께 차단 후보만 담은 `brute-force/deny-rules.json`을 만들고, `xdr/alerts.log`에는 block·alert 항목을 한 줄씩 기록합니다. 차단 규칙은 15분 뒤 만료되며 근거 경보 ID를 포함합니다. 같은 fixture로 재실행해도 경보 로그는 중복되지 않습니다. 실행기는 fixture의 출발 주소로 `src/decider-with-xdr.mjs`를 호출합니다. 규칙에 걸리지 않은 요청은 기존 `src/decider.mjs`로 넘어갑니다. 현재 실제 반 엔진/배포 요청 계약에는 출발 IP가 없어 운영 경로에는 연결되지 않았으므로 운영 차단으로 표현하지 않습니다.
