@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { normalizeSourceAddress } from './deny-rules.mjs';
+import { getCredentialFingerprint } from './private-signals.mjs';
 
 const patterns = JSON.parse(readFileSync(new URL('./patterns.json', import.meta.url), 'utf8'));
 const patternByName = new Map(patterns.map((pattern) => [pattern.name, pattern]));
@@ -34,8 +35,7 @@ function eventDetails(alert) {
     timestampMs,
     sourceAddress: normalizeSourceAddress(sourceAddress),
     account: typeof account === 'string' ? account : '',
-    fingerprint: typeof alert?.data?.credential_fingerprint === 'string'
-      ? alert.data.credential_fingerprint.trim() : '',
+    fingerprint: getCredentialFingerprint(alert),
     eventType: getEventType(alert),
   };
 }

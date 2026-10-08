@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { retainCredentialFingerprint } from './private-signals.mjs';
 
 const root = resolve(import.meta.dirname, '../..');
 const fixturePath = resolve(root, 'xdr', 'fixtures', 'brute-force.json');
@@ -32,13 +33,15 @@ export function readAlerts(alerts) {
     const rule = alert?.rule ?? {};
     const data = alert?.data ?? {};
     const level = Number(rule.level);
-    return {
+    const row = {
       timestamp: redactText(alert?.timestamp ?? alert?.['@timestamp']),
       sourceAddress: redactText(data.srcip),
       account: redactText(data.srcuser),
       ruleLevel: Number.isFinite(level) ? level : null,
       description: redactText(rule.description),
     };
+    retainCredentialFingerprint(row, data.credential_fingerprint);
+    return row;
   });
 }
 

@@ -211,7 +211,8 @@ function runIsolated(t, alerts) {
   });
   const repo = resolve(import.meta.dirname, '..');
   for (const file of ['scripts/xdr-run.mjs', 'scripts/fixture-7.mjs', 'src/decider.mjs', 'src/decider-xdr.mjs',
-    'xdr/brute-force/read-alerts.mjs', 'xdr/brute-force/decide.mjs', 'xdr/brute-force/patterns.json', 'xdr/brute-force/deny-rules.mjs']) {
+    'xdr/brute-force/read-alerts.mjs', 'xdr/brute-force/decide.mjs', 'xdr/brute-force/private-signals.mjs',
+    'xdr/brute-force/patterns.json', 'xdr/brute-force/deny-rules.mjs']) {
     const target = join(directory, file);
     mkdirSync(dirname(target), { recursive: true });
     copyFileSync(join(repo, file), target);
@@ -437,7 +438,23 @@ test('a decider instance correlates the five-field readAlerts rows as a stream',
   const decider = createDecider();
   const counts = { block: 0, alert: 0, record: 0 };
   for (const alert of readAlerts(rawAlerts)) counts[(await decider.decide(alert)).action] += 1;
-  assert.deepEqual(counts, { block: 2, alert: 0, record: 15 });
+  assert.deepEqual(counts, { block: 3, alert: 0, record: 14 });
+});
+
+test('readAlerts keeps a private hashed credential signal for decide without exposing it in output', async () => {
+  const fingerprint = 'SYNTHETIC_FINGERPRINT_CANARY';
+  const rows = readAlerts([0, 10, 20].map((seconds, index) => {
+    const alert = syntheticAlert(index, seconds, { spray: true });
+    alert.data.credential_fingerprint = fingerprint;
+    return alert;
+  }));
+
+  assert.deepEqual(Object.keys(rows[0]), ['timestamp', 'sourceAddress', 'account', 'ruleLevel', 'description']);
+  assert.doesNotMatch(JSON.stringify(rows), new RegExp(fingerprint, 'u'));
+  const decider = createDecider();
+  const actions = [];
+  for (const row of rows) actions.push((await decider.decide(row)).action);
+  assert.deepEqual(actions, ['record', 'record', 'block']);
 });
 
 test('IPv6 variants correlate and a success on the same IPv6 protects the whole address', (t) => {
