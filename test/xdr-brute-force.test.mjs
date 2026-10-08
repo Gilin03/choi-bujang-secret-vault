@@ -5,7 +5,7 @@ import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync, rmSy
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { readAlerts } from '../xdr/brute-force/read-alerts.mjs';
-import { decide } from '../xdr/brute-force/decide.mjs';
+import { createDecider, decide } from '../xdr/brute-force/decide.mjs';
 import { checkZtnaDenyRules, createDenyRules, isSourceDenied } from '../xdr/brute-force/deny-rules.mjs';
 import { decideWithXdr } from '../src/decider-xdr.mjs';
 import * as xdrAdapter from '../src/decider-xdr.mjs';
@@ -27,7 +27,7 @@ test('readAlerts returns one allow-listed row per Wazuh alert and redacts secret
 });
 
 test('decide blocks a repeated credential fingerprint across accounts', async () => {
-  const result = await decide({
+  const result = await createDecider().decide({
     timestamp: stamp,
     ruleLevel: 5,
     patternSignals: {
@@ -46,7 +46,7 @@ test('decide blocks a repeated credential fingerprint across accounts', async ()
 });
 
 test('decide blocks a five-failure same-account burst when no normal login shares the source', async () => {
-  const result = await decide({
+  const result = await createDecider().decide({
     timestamp: stamp,
     ruleLevel: 5,
     patternSignals: {
@@ -69,7 +69,7 @@ test('decide alerts on an ambiguous source burst when Jev is unavailable', async
   const oldReviewUrl = process.env.JEV_REVIEW_URL;
   delete process.env.JEV_REVIEW_URL;
   try {
-    const result = await decide({
+    const result = await createDecider().decide({
       timestamp: stamp,
       ruleLevel: 5,
       patternSignals: {
@@ -115,10 +115,11 @@ test('decide asks Jev only for ambiguous signals and applies the confidence thre
         sameCredentialAccountCount: 1,
       },
     };
-    assert.equal((await decide(ambiguous)).action, 'block');
-    assert.equal((await decide(ambiguous)).action, 'alert');
-    assert.equal((await decide(ambiguous)).action, 'record');
-    assert.equal((await decide({ ...ambiguous, patternSignals: { ...ambiguous.patternSignals, isLoginFailure: false } })).action, 'record');
+    const decider = createDecider();
+    assert.equal((await decider.decide(ambiguous)).action, 'block');
+    assert.equal((await decider.decide(ambiguous)).action, 'alert');
+    assert.equal((await decider.decide(ambiguous)).action, 'record');
+    assert.equal((await decider.decide({ ...ambiguous, patternSignals: { ...ambiguous.patternSignals, isLoginFailure: false } })).action, 'record');
     assert.equal(sentBodies.length, 3);
     assert.doesNotMatch(JSON.stringify(sentBodies), /198\.51\.100\.35|user_fixture/u);
   } finally {
@@ -129,7 +130,7 @@ test('decide asks Jev only for ambiguous signals and applies the confidence thre
 });
 
 test('decide records a normal event', async () => {
-  assert.deepEqual(await decide({
+  assert.deepEqual(await createDecider().decide({
     timestamp: stamp,
     ruleLevel: 3,
     patternSignals: {
@@ -323,7 +324,7 @@ test('malformed Jev confidence falls back to alert instead of becoming zero', as
   try {
     for (const confidence of [null, '', false, '0.9', {}, -1, 1.01]) {
       globalThis.fetch = async () => ({ ok: true, json: async () => ({ confidence }) });
-      const result = await decide({ ruleLevel: 5,
+      const result = await createDecider().decide({ ruleLevel: 5,
         patternSignals: { isLoginFailure: true, sameSourceFailures: 8, sameAccountFailures: 1, sameCredentialAccountCount: 0 } });
       assert.equal(result.action, 'alert');
       assert.equal(result.confidence, 0.5);
@@ -339,7 +340,7 @@ test('an unavailable Jev also falls back to alert for a same-account burst', asy
   const oldUrl = process.env.JEV_REVIEW_URL;
   delete process.env.JEV_REVIEW_URL;
   try {
-    const result = await decide({ ruleLevel: 5,
+    const result = await createDecider().decide({ ruleLevel: 5,
       patternSignals: { isLoginFailure: true, sameSourceFailures: 5, sameAccountFailures: 5, sameCredentialAccountCount: 0 } });
     assert.deepEqual(result, { action: 'alert', confidence: 0.5, reason: 'same-account-failure-burst' });
   } finally {
@@ -408,6 +409,21 @@ test('equivalent IPv6 spellings match the same deny rule', () => {
     action: 'block', reason: 'credential-spray' }], now);
   assert.equal(checkZtnaDenyRules('2001:db8::1', rules, now).action, 'deny');
   assert.equal(isSourceDenied('2001:db8::1', rules, now), true);
+});
+
+test('the public decide(alert) entry point correlates raw Wazuh alerts without private patternSignals', async () => {
+  const rawAlerts = JSON.parse(readFileSync(join(import.meta.dirname, '../xdr/fixtures/brute-force.json'), 'utf8'));
+  const counts = { block: 0, alert: 0, record: 0 };
+  for (const alert of rawAlerts) counts[(await decide(alert)).action] += 1;
+  assert.deepEqual(counts, { block: 2, alert: 1, record: 14 });
+});
+
+test('a decider instance correlates the five-field readAlerts rows as a stream', async () => {
+  const rawAlerts = JSON.parse(readFileSync(join(import.meta.dirname, '../xdr/fixtures/brute-force.json'), 'utf8'));
+  const decider = createDecider();
+  const counts = { block: 0, alert: 0, record: 0 };
+  for (const alert of readAlerts(rawAlerts)) counts[(await decider.decide(alert)).action] += 1;
+  assert.deepEqual(counts, { block: 1, alert: 1, record: 15 });
 });
 
 test('IPv6 variants correlate and a success on the same IPv6 protects the whole address', (t) => {

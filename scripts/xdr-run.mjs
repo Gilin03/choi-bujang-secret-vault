@@ -2,67 +2,16 @@ import { appendFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { readAlerts, redactText } from '../xdr/brute-force/read-alerts.mjs';
-import { decide } from '../xdr/brute-force/decide.mjs';
+import { createDecider, getEventType } from '../xdr/brute-force/decide.mjs';
 import { checkZtnaDenyRules, createDenyRules, normalizeSourceAddress } from '../xdr/brute-force/deny-rules.mjs';
 import { decideWithXdr } from '../src/decider-xdr.mjs';
 import { fixtureRequests } from './fixture-7.mjs';
-import patterns from '../xdr/brute-force/patterns.json' with { type: 'json' };
 
 const root = resolve(import.meta.dirname, '..');
 const fixturePath = resolve(root, 'xdr', 'fixtures', 'brute-force.json');
 const outputPath = resolve(root, 'xdr', 'brute-force', 'result.json');
 const rulesPath = resolve(root, 'xdr', 'brute-force', 'deny-rules.json');
 const logPath = resolve(root, 'xdr', 'alerts.log');
-const patternByName = new Map(patterns.map((pattern) => [pattern.name, pattern]));
-
-function eventType(alert) {
-  const groups = Array.isArray(alert?.rule?.groups) ? alert.rule.groups : [];
-  if (groups.includes('authentication_failed')) return 'login_failure';
-  if (groups.includes('authentication_success')) return 'normal';
-  const description = String(alert?.rule?.description ?? '');
-  if (/\b(?:authentication|login|logon)\s*(?::\s*)?(?:failure|failed|invalid|denied)\b|\bfailed\s+(?:login|logon|password|authentication)\b|\bsshd:.*\binvalid user\b/iu.test(description)) return 'login_failure';
-  if (/\b(?:authentication|login|logon)\s*(?::\s*)?(?:accepted|success(?:ful)?|succeeded)\b|\bsshd:.*\baccepted (?:password|publickey)\b/iu.test(description)) return 'normal';
-  return 'other';
-}
-
-function inWindow(events, current, seconds, match) {
-  const currentTime = Date.parse(current.timestamp ?? current['@timestamp']);
-  if (!Number.isFinite(currentTime)) return [];
-  const start = currentTime - seconds * 1000;
-  return events.filter((event) => {
-    const eventTime = Date.parse(event.timestamp ?? event['@timestamp']);
-    return eventTime >= start && eventTime <= currentTime && match(event);
-  });
-}
-
-function deriveSignals(rawAlerts, index, normalized) {
-  const current = rawAlerts[index];
-  const currentTime = Date.parse(normalized.timestamp);
-  const sourceAddress = normalizeSourceAddress(normalized.sourceAddress);
-  const validSource = sourceAddress !== null;
-  const sourceMatches = inWindow(rawAlerts, current, patternByName.get('same-source-failure-burst').windowSeconds,
-    (event) => validSource && normalizeSourceAddress(event.data?.srcip) === sourceAddress && eventType(event) === 'login_failure');
-  const accountMatches = inWindow(rawAlerts, current, patternByName.get('same-account-failure-burst').windowSeconds,
-    (event) => validSource && Boolean(current.data?.srcuser) && normalizeSourceAddress(event.data?.srcip) === sourceAddress
-      && event.data?.srcuser === current.data?.srcuser && eventType(event) === 'login_failure');
-  const fingerprint = current.data?.credential_fingerprint;
-  const credentialMatches = inWindow(rawAlerts, current, patternByName.get('credential-spray').windowSeconds,
-    (event) => validSource && typeof fingerprint === 'string' && Boolean(fingerprint.trim())
-      && normalizeSourceAddress(event.data?.srcip) === sourceAddress
-      && event.data?.credential_fingerprint === fingerprint
-      && eventType(event) === 'login_failure');
-
-  return {
-    isLoginFailure: eventType(current) === 'login_failure',
-    sourceHasNormalLogin: rawAlerts.some((event) => validSource
-      && normalizeSourceAddress(event.data?.srcip) === sourceAddress && eventType(event) === 'normal'
-      && Number.isFinite(Date.parse(event.timestamp ?? event['@timestamp']))),
-    sameSourceFailures: sourceMatches.length,
-    sameAccountFailures: accountMatches.length,
-    sameCredentialAccountCount: new Set(credentialMatches.map((event) => event.data?.srcuser).filter(Boolean)).size,
-    timestampMs: currentTime,
-  };
-}
 
 async function readJson(path, fallback) {
   try {
@@ -102,11 +51,13 @@ export async function runBruteForce() {
   const normalizedAlerts = readAlerts(rawAlerts);
   if (normalizedAlerts.length !== rawAlerts.length) throw new Error('alert_count_mismatch');
 
+  const knownNormalSourceAddresses = rawAlerts.filter((alert) => getEventType(alert) === 'normal')
+    .map((alert) => alert?.data?.srcip);
+  const decider = createDecider({ knownNormalSourceAddresses });
   const records = [];
   for (let index = 0; index < rawAlerts.length; index += 1) {
     const alert = normalizedAlerts[index];
-    const signals = deriveSignals(rawAlerts, index, alert);
-    const decision = await decide({ ...alert, patternSignals: signals });
+    const decision = await decider.decide(rawAlerts[index]);
     const rawId = String(rawAlerts[index].id ?? `alert-${index + 1}`);
     const alertId = redactText(rawId) === rawId ? rawId : `alert-${index + 1}`;
     records.push({
@@ -116,7 +67,7 @@ export async function runBruteForce() {
       account: alert.account,
       ruleLevel: alert.ruleLevel,
       description: alert.description,
-      eventType: eventType(rawAlerts[index]),
+      eventType: getEventType(rawAlerts[index]),
       action: decision.action,
       confidence: decision.confidence,
       reason: decision.reason,
