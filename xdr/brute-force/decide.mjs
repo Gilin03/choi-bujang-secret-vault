@@ -1,8 +1,10 @@
-import { readFileSync } from 'node:fs';
 import { readAlert } from './read-alerts.mjs';
 
-const PATTERNS = JSON.parse(readFileSync(new URL('./patterns.json', import.meta.url), 'utf8')).patterns;
-const PATTERN_BY_ID = new Map(PATTERNS.map((pattern) => [pattern.id, pattern]));
+// Keep the sandboxed decision entry point dependency-free; metadata is documented in patterns.json.
+const PATTERN_BY_ID = new Map([
+  ['rapid_same_source_failures', { name: '짧은 시간 같은 출발지의 반복 로그인 실패' }],
+  ['password_spraying', { name: '여러 계정에 같은 비밀번호 대입' }],
+]);
 const JEV_TIMEOUT_MS = 1000;
 
 function objectOrEmpty(value) {

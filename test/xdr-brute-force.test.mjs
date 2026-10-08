@@ -71,6 +71,25 @@ test('readAlerts rejects an invalid fixture without echoing its input', () => {
   assert.throws(() => readAlerts({ schema: 'wrong', alerts: ['secret-marker'] }), /invalid_xdr_fixture/);
 });
 
+test('decide runtime imports only local modules and no Node built-ins or packages', async () => {
+  const pending = [new URL('../xdr/brute-force/decide.mjs', import.meta.url)];
+  const visited = new Set();
+  while (pending.length) {
+    const moduleUrl = pending.pop();
+    if (visited.has(moduleUrl.href)) continue;
+    visited.add(moduleUrl.href);
+    const source = await readFile(moduleUrl, 'utf8');
+    const specifiers = [...source.matchAll(/(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s*)['"]([^'"]+)['"]/gu)]
+      .map((match) => match[1]);
+    for (const specifier of specifiers) {
+      assert.ok(specifier.startsWith('.'), `${moduleUrl.pathname} imports non-local module ${specifier}`);
+      const importedUrl = new URL(specifier, moduleUrl);
+      assert.equal(importedUrl.protocol, 'file:');
+      pending.push(importedUrl);
+    }
+  }
+});
+
 test('patterns document only repeated-source failures and password spraying with evidence', async () => {
   const patterns = JSON.parse(await readFile(new URL('../xdr/brute-force/patterns.json', import.meta.url), 'utf8'));
 
@@ -109,10 +128,15 @@ test('decide classifies the authoritative fixture into clear, ambiguous, and nor
     assert.ok(decisions.slice(0, 10).every((decision) => decision.confidence >= 0.85));
     assert.ok(decisions.slice(10, 19).every((decision) => decision.action === 'alert'));
     assert.ok(decisions.slice(19).every((decision) => decision.action === 'record'));
+    const patternNames = JSON.parse(await readFile(new URL('../xdr/brute-force/patterns.json', import.meta.url), 'utf8'))
+      .patterns.map((pattern) => pattern.name);
     for (const decision of decisions) {
       assert.deepEqual(Object.keys(decision), ['action', 'confidence', 'reason']);
       assert.ok(decision.reason.length > 0);
       assert.doesNotMatch(decision.reason, /\r|\n/u);
+    }
+    for (const decision of decisions.slice(0, 19)) {
+      assert.ok(patternNames.some((name) => decision.reason.startsWith(`${name}:`)));
     }
   });
 });
