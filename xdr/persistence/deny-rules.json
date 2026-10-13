@@ -1,0 +1,86 @@
+{
+  "schema": "aleph.xdr.deny-rules.v1",
+  "generatedAt": "2026-10-13T06:57:01.465Z",
+  "rules": [
+    {
+      "id": "xdr-persistence-ps-01",
+      "action": "deny",
+      "sourceAddress": "203.0.113.12",
+      "createdAt": "2026-10-13T06:57:01.465Z",
+      "expiresAt": "2026-10-13T07:12:01.465Z",
+      "evidenceAlertId": "ps-01",
+      "confidence": 0.95,
+      "reason": "서명 없는 신규·미등록 서비스 지속성: temporary persistence response"
+    },
+    {
+      "id": "xdr-persistence-ps-02",
+      "action": "deny",
+      "sourceAddress": "203.0.113.12",
+      "createdAt": "2026-10-13T06:57:01.465Z",
+      "expiresAt": "2026-10-13T07:12:01.465Z",
+      "evidenceAlertId": "ps-02",
+      "confidence": 0.95,
+      "reason": "낯선 예약 작업 지속성: temporary persistence response"
+    },
+    {
+      "id": "xdr-persistence-ps-03",
+      "action": "deny",
+      "sourceAddress": "198.51.100.12",
+      "createdAt": "2026-10-13T06:57:01.465Z",
+      "expiresAt": "2026-10-13T07:12:01.465Z",
+      "evidenceAlertId": "ps-03",
+      "confidence": 0.95,
+      "reason": "시작 폴더·프로그램 지속성: temporary persistence response"
+    },
+    {
+      "id": "xdr-persistence-ps-04",
+      "action": "deny",
+      "sourceAddress": "192.0.2.12",
+      "createdAt": "2026-10-13T06:57:01.465Z",
+      "expiresAt": "2026-10-13T07:12:01.465Z",
+      "evidenceAlertId": "ps-04",
+      "confidence": 0.95,
+      "reason": "서명 없는 신규·미등록 서비스 지속성: temporary persistence response"
+    },
+    {
+      "id": "xdr-persistence-ps-05",
+      "action": "deny",
+      "sourceAddress": "203.0.113.19",
+      "createdAt": "2026-10-13T06:57:01.465Z",
+      "expiresAt": "2026-10-13T07:12:01.465Z",
+      "evidenceAlertId": "ps-05",
+      "confidence": 0.95,
+      "reason": "낯선 예약 작업 지속성: temporary persistence response"
+    },
+    {
+      "id": "xdr-persistence-ps-06",
+      "action": "deny",
+      "sourceAddress": "198.51.100.19",
+      "createdAt": "2026-10-13T06:57:01.465Z",
+      "expiresAt": "2026-10-13T07:12:01.465Z",
+      "evidenceAlertId": "ps-06",
+      "confidence": 0.95,
+      "reason": "서명 없는 신규·미등록 서비스 지속성: temporary persistence response"
+    },
+    {
+      "id": "xdr-persistence-ps-07",
+      "action": "deny",
+      "sourceAddress": "192.0.2.19",
+      "createdAt": "2026-10-13T06:57:01.465Z",
+      "expiresAt": "2026-10-13T07:12:01.465Z",
+      "evidenceAlertId": "ps-07",
+      "confidence": 0.95,
+      "reason": "시작 폴더·프로그램 지속성: temporary persistence response"
+    },
+    {
+      "id": "xdr-persistence-ps-08",
+      "action": "deny",
+      "sourceAddress": "203.0.113.33",
+      "createdAt": "2026-10-13T06:57:01.465Z",
+      "expiresAt": "2026-10-13T07:12:01.465Z",
+      "evidenceAlertId": "ps-08",
+      "confidence": 0.95,
+      "reason": "서명 없는 신규·미등록 서비스 지속성: temporary persistence response"
+    }
+  ]
+}

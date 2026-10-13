@@ -50,3 +50,9 @@ node scripts/xdr-run.mjs brute-force
 `npm run xdr:run -- known-cve`는 24개 가상 Wazuh 형식 경보를 판단합니다. 확인용 `known-cve/read-alerts.mjs`는 시각·출발 주소·계정·규칙 수준·설명만 추출하고 비밀값처럼 보이는 문자열을 가립니다. 단독 실행형 `known-cve/decide.mjs`는 이 reader나 다른 모듈을 import하지 않습니다. 완성된 JNDI 원격 조회 구문이 고위험 규칙과 유효 출발 주소를 함께 만족할 때만 block하고, 명시적 점검 도구 흔적이나 약한 CVE/T1190 신호는 alert, 정상 이벤트는 record로 둡니다. 패턴 근거는 `known-cve/patterns.json`에 기록했습니다.
 
 실행하면 `known-cve/result.json`, 15분 만료와 근거 경보 ID가 포함된 차단 후보 `known-cve/deny-rules.json`, 중복 방지 `xdr/alerts.log`가 생성됩니다. 로그에는 경보 ID·행동·확신도·고정 사유만 남기며 요청 URL·머리글·계정은 기록하지 않습니다. 실행기는 fixture 출발 주소로 기존 `src/decider-with-xdr.mjs` 사전 차단 게이트를 확인하고 block·alert·record 및 gate 결과를 출력합니다. 이것은 학습용 fixture 검증이며 실제 Wazuh 수집이나 운영 트래픽 차단을 의미하지 않습니다.
+
+## 서비스·예약 작업 지속성 연습
+
+`npm run xdr:run -- persistence`는 `persistence.json`의 24개 가상 Wazuh 경보를 판단합니다. 확인용 `persistence/read-alerts.mjs`는 시각·출발 주소·계정·규칙 수준·설명만 추리고 비밀처럼 보이는 값을 가립니다. 단독 `persistence/decide.mjs`는 MITRE ATT&CK T1543·T1053 신호를 자체 판정하며 파일·네트워크·패키지를 불러오지 않습니다. 서명 없는 신규·미등록 서비스, 낯선 예약 작업, 시작 폴더·작업이 같은 임시 파일을 가리키는 고위험 조합만 block 후보입니다. 구체성이 부족한 지속성 경보는 alert, 정상 이벤트는 record입니다.
+
+실행기는 `persistence/result.json`, 15분 만료와 근거 경보 ID가 있는 `persistence/deny-rules.json`을 만들고, block·alert의 안전한 메타데이터만 `xdr/alerts.log`에 중복 없이 추가합니다. fixture 출발 주소를 기존 `src/decider-with-xdr.mjs` 게이트에 넣어 block·alert·record 건수, 게이트 deny·continue, 정상 차단 건수를 출력합니다. 이는 연습 fixture 평가이며 실제 Wazuh 수집·서비스 격리·예약 작업 제거·운영 ZTNA 차단은 아닙니다.

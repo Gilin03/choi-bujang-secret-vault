@@ -1,0 +1,26 @@
+{
+  "schema": "aleph.xdr.patterns.v1",
+  "patterns": [
+    {
+      "id": "unsigned_or_unlisted_service_persistence",
+      "name": "서명 없는 신규·미등록 서비스 지속성",
+      "condition": "T1543 경보에서 서명 없는 새 서비스 등록 또는 서명 없는 실행 파일 변경이 나타나거나, 평소 목록에 없는 서비스가 재시작 뒤에도 남도록 등록되고 규칙 수준이 10 이상이면 뚜렷한 신호입니다. 반복 등록도 포함합니다.",
+      "evidence": "MITRE ATT&CK T1543은 서비스·데몬을 생성하거나 변경해 지속성을 얻는 기법을 설명합니다.",
+      "source": "https://attack.mitre.org/techniques/T1543/"
+    },
+    {
+      "id": "unfamiliar_scheduled_task_persistence",
+      "name": "낯선 예약 작업 지속성",
+      "condition": "T1053 경보에서 처음 보는 작업이나 임의 이름의 작업이 임시 폴더 실행 파일을 가리키거나, 수업·업무 시간 밖 실행과 임시 경로가 함께 확인되고 규칙 수준이 10 이상이면 뚜렷한 신호입니다.",
+      "evidence": "MITRE ATT&CK T1053은 예약 작업이나 작업 스케줄러를 악용해 명령·프로그램을 반복 또는 지연 실행하는 기법을 설명합니다.",
+      "source": "https://attack.mitre.org/techniques/T1053/"
+    },
+    {
+      "id": "startup_folder_persistence",
+      "name": "시작 폴더·프로그램 지속성",
+      "condition": "T1543 경보에서 평소 목록에 없던 프로그램의 시작 폴더 추가가 높은 규칙 수준과 함께 나타나거나, T1543·T1053 경보가 시작 항목과 예약 작업에 같은 임시 파일을 가리키면 뚜렷한 신호입니다.",
+      "evidence": "MITRE ATT&CK T1543은 시스템 서비스 생성·변경을, T1053은 예약 작업을 통한 지속성을 설명합니다. 시작 위치 변경과 예약 작업의 결합은 두 기법의 관찰 신호입니다.",
+      "source": "https://attack.mitre.org/techniques/T1543/"
+    }
+  ]
+}
