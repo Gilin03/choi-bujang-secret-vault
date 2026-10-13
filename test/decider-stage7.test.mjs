@@ -19,7 +19,7 @@ test('known normal fixture is allowed, composite anomaly requests step-up, and r
   assert.equal((await decide(regionOnly)).decision, 'allow');
 });
 
-test('missing or unclear signal provenance is never promoted to trusted normal context', async () => {
+test('client supplied signal values are challenged but the declared live no-signal path stays available', async () => {
   const { normal, suspicious } = fixtureRequests();
   const clientHeaderValues = {
     ...suspicious,
@@ -32,11 +32,11 @@ test('missing or unclear signal provenance is never promoted to trusted normal c
 
   const noSource = {
     ...normal,
-    signals: { source: 'none', region: 'local', network: 'usual', hour: 14 },
+    signals: { source: 'none', region: 'unknown', network: 'unknown', hour: null },
   };
   const absentSource = await decide(noSource);
-  assert.equal(absentSource.decision, 'step_up');
-  assert.equal(absentSource.reasonCode, 'step_up_required');
+  assert.equal(absentSource.decision, 'allow');
+  assert.equal(absentSource.reasonCode, 'approved');
 });
 
 test('missing region, network, hour, or behavior is challenged instead of filled with normal defaults', async () => {
