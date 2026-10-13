@@ -181,7 +181,7 @@
 
     async function loadNotes() {
       showMessage(appError);
-      const result = await api('/api/notes');
+      const result = await api('/api/my/notes');
       renderRows(sampleList, result.samples || [], false);
       renderRows(noteList, result.notes || [], true);
     }

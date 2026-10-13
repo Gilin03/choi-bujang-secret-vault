@@ -10,13 +10,13 @@
 - 브라우저 파일에는 Supabase API 키가 없고 메모 테이블을 직접 읽거나 고치는 Data API 호출도 없습니다. `signInWithPassword`, `signOut`, `getSession` 호출은 유지합니다. 메모 CRUD는 아래 Vercel 자료 함수만 호출합니다.
 - `/api/auth-proxy/token`, `/api/auth-proxy/user`, `/api/auth-proxy/logout`은 각각 고정된 Vercel 함수이며 해당 Auth 경로만 허용합니다. 로그인 요청은 Supabase로 HTTPS 전달되며 프록시는 요청 본문이나 자격 증명을 로그에 쓰지 않습니다. 이 공개 경로는 로그인을 중개할 뿐, 로그인 시도 자체를 제한하지 않습니다.
 - 자료 API는 `src/verify-login.mjs`로 Supabase 발급자·대상·만료를 확인합니다. 요청의 브라우저 `userId`, `role`, `owner_id`를 신뢰하지 않고, 확인한 사용자 ID를 새 메모의 `owner_id`로 저장합니다.
-- `GET /api/notes`는 로그인한 사용자의 메모만 반환합니다. `POST /api/notes`는 메모를 추가하고, `GET`, `PUT`, `DELETE /api/notes/:id`는 검증한 사용자 ID와 저장된 `owner_id`를 대조한 뒤 처리합니다. 수정·삭제는 변경 전에 소유자를 확인하고, 변경 후에도 소유자를 확인합니다. 다른 사용자 소유 ID와 없는 ID는 모두 `404`입니다.
+- 화면은 명시적 자기 목록 경로 `GET /api/my/notes`를 사용합니다. 이 경로는 검증한 로그인 사용자 ID로 DB를 필터하고 응답 직전 소유자를 다시 대조합니다. 기존 `GET /api/notes`도 API 호환성을 위해 유지하지만 판정기 허용 경로에는 없습니다. `POST /api/notes`는 메모를 추가하고, `GET`, `PUT`, `DELETE /api/notes/:id`는 검증한 사용자 ID와 저장된 `owner_id`를 대조한 뒤 처리합니다. 수정·삭제는 변경 전에 소유자를 확인하고 변경 뒤에도 소유자를 확인합니다. 다른 사용자 소유 ID와 없는 ID는 모두 `404`입니다.
 - 비로그인 API 요청은 `401`로 거부됩니다. A/B 교차 계정의 단건 읽기·수정·삭제는 테스트에서 `404`로 거부되고, 본인 메모 CRUD는 허용됩니다.
 - `SUPABASE_SECRET_KEY`는 자료 CRUD용 Vercel 서버 함수에서만 사용합니다. Auth 프록시는 별도 `SUPABASE_PUBLISHABLE_KEY` 환경변수를 사용합니다. 실제 키 값은 두 환경변수 모두 브라우저·응답·로그·GitHub·제출 묶음에 넣지 않습니다.
 - `/data.json`과 `public/data.json`은 없습니다. 옛 공개 Git 커밋과 옛 배포 이력은 남으므로, 과거 노출이 지워졌다고 보지 마세요.
 - 6단계 판정기는 계약의 `deviceRegistered` 값이 `true`일 때만 허용하고, `false` 또는 누락은 `device_not_registered`로 거부합니다. `npm run decider:test`는 등록·미등록·상태 누락 가상 요청을 확인하는 로컬 연습이며 실제 기기 등록이나 심판 판정의 증거가 아닙니다.
 - 7단계 판정기는 가상 접속 신호의 출처와 모양을 검사해 복합 이상 사건에 `step_up`을 요구합니다. 현재 실제 계약은 위치·네트워크 신호와 재로그인 확인 기능을 제공하지 않으므로 `source: none` 요청에는 신호를 꾸며 넣지 않고 정상 기기·허용 경로 규칙만 적용합니다. 지역 하나만으로 차단하지 않습니다.
-- 8단계 자원 ID는 `student_notes`와 `instructor_announcements`로 분리했습니다. 메모 API는 DB 필터와 응답 직전의 저장된 소유자 대조를 함께 하고, 강사 공지는 별도 API에서 저장된 강사 권한을 확인합니다.
+- 8단계 자원 ID는 `student_notes`와 `instructor_announcements`로 분리했습니다. 판정기는 자기 목록의 명시적 GET 경로와 메모 단건 GET만 허용하며, 모호한 `/api/notes` 목록과 엔진 계약으로 소유자·강사 권한을 증명할 수 없는 쓰기는 거부합니다. 최종 메모 API는 검증된 사용자와 저장된 `owner_id`를 대조하고, 강사 공지 API는 저장된 강사 권한을 확인합니다.
 - 로컬 점검: `node --test test/auth-proxy.test.mjs`, `npm run test:r5`, `npm run test:stage3`, `npm run build -- --local`, `npm run decider:test`, `npm run fixture:7`, `node --test test/decider-stage7.test.mjs`, `npm run test:stage8`.
 - 저장점 커밋과 실제 배포가 끝난 뒤 `npm run bundle`을 실행하면 실제 비로그인 요청의 상태만 제출 묶음에 기록합니다. 이 결과는 학생의 자체 점검이며 심판 판정이 아닙니다. A 계정의 정상 로그인과 메모 CRUD는 웹 화면에서 별도로 확인해야 합니다. `bundle-notes.json`과 `artifacts/submission.json`은 커밋하지 않습니다.
 
@@ -29,13 +29,13 @@
 
 ## 8단계 자료 구역과 강사 공지
 
-- 자원 ID는 `src/resource-zones.mjs`의 `student_notes`와 `instructor_announcements`로 구분합니다. 기존 `/api/notes` 및 `/api/notes/:id` 주소와 응답 본문은 유지하고, 응답에는 `X-Aleph-Resource-Id` 헤더로 메모 구역을 표시합니다.
-- 판정기는 엔진 계약의 `subjectId`, `deviceId`, `deviceRegistered`, HTTP 메서드와 정확한 `service`·`path`·`route`를 확인합니다. 쿼리가 있거나 모르는 경로·메서드·서비스, `/notes/:id/export` 같은 추가 깊이는 `resource_not_authorized`로 거부합니다. 요청 본문의 `role`은 읽지 않습니다.
+- 자원 ID는 `src/resource-zones.mjs`의 `student_notes`와 `instructor_announcements`로 구분합니다. 화면의 자기 목록은 `GET /api/my/notes`를 사용하며, 이 별도 Vercel 함수도 기존 로그인 검증·DB 소유자 필터를 사용합니다. 단건 읽기와 CRUD 주소·응답은 유지하고 메모 응답에는 `X-Aleph-Resource-Id`를 표시합니다.
+- 판정기는 엔진 계약의 `subjectId`, `deviceId`, `deviceRegistered`, HTTP 메서드와 정확한 `service`·`path`·`route`를 확인합니다. `subjectId`는 DB 소유자 ID가 아니므로 소유권 증거로 쓰지 않습니다. 모호한 `GET /api/notes` 목록, 소유자·강사 권한 증거 없는 쓰기, 쿼리가 있는 요청, 모르는 경로·메서드·서비스, `/notes/:id/export` 같은 추가 깊이는 `resource_not_authorized`로 거부합니다. 본인 목록과 단건 GET은 판정기가 경로를 제한한 뒤 API가 검증한 사용자와 저장된 소유자를 최종 대조합니다.
 - 강사 공지는 `/api/announcements`에서 로그인 사용자에게 읽기 전용으로 보여 주고, `/api/announcements/:id`의 `PUT`은 `vault_instructor_access`에서 검증된 Supabase 사용자 ID의 활성 강사 권한을 확인한 뒤에만 실행합니다. 일반 학생의 role·userId·updated_by 요청 필드는 권한으로 쓰지 않습니다. 강사 권한 조회 실패도 거부합니다.
 - `supabase/stage8-resource-zones.sql`은 기존 `vault_notes`와 그 권한을 바꾸지 않고 `vault_announcements`, `vault_instructor_access`만 추가합니다. 두 테이블은 RLS를 켜고 `PUBLIC`, `anon`, `authenticated` 권한을 회수하며, 서버 함수에 필요한 `service_role`의 공지 `SELECT/UPDATE`와 권한표 `SELECT`만 남깁니다. 실제 강사 계정은 운영자가 확인한 Supabase 사용자 UUID로 `vault_instructor_access`에 등록해야 합니다. 임의로 학생을 강사로 지정하지 않았습니다.
 - 연결된 `defense` DB에는 두 테이블을 추가했고, 확인 결과 현재 공지 0건·강사 권한 0건입니다. 두 테이블 모두 RLS가 켜졌고 anon/authenticated SELECT·UPDATE는 `false`; `service_role`은 공지 SELECT·UPDATE와 강사표 SELECT만 가능합니다. 아직 실제 강사 계정을 등록하지 않았으므로 실제 계정의 공지 PUT은 기본 거부됩니다. 승인된 강사 등록은 관리자 권한으로 확인한 UUID만 사용하세요.
 - 판정기 연습에서 `instructor_fixture`는 가상 강사 subject ID일 뿐입니다. 실제 강사 subject ID 매핑과 `resource_not_authorized` 이유 코드 등록 여부는 반 엔진 운영 설정에 달려 있으며, 이 저장소만으로 운영 엔진을 변경했다고 주장하지 않습니다.
-- `npm run test:stage8`은 등록 학생의 본인 메모 경로·가상 강사 공지 수정은 허용하고, 다른 학생의 메모 직접 API 접근은 `404`, 일반 학생의 공지 수정은 `403`, 알 수 없는 API 경로는 `404`인지 확인합니다. 소유자 DB 필터를 무시하는 테스트 조건에서도 API가 저장된 소유자를 비교해 교차 읽기·수정·삭제를 거부하는지 확인합니다. 화면 메뉴는 변경하지 않았습니다.
+- `npm run test:stage8`은 명시적 자기 목록·본인 메모 GET의 판정 허용, 모호한 목록·미검증 쓰기·미등록 기기의 거부, route/path 불일치 거부, 7단계 추가 확인 유지, 그리고 API의 A/B 소유자 검사를 확인합니다. 단건 GET은 계약의 가명 `subjectId`만으로 주인을 구분할 수 없으므로 판정기는 경로를 제한하고 API가 B의 A 메모를 `404`로 거부합니다. 학생 공지 PUT은 API에서 `403`이며 판정기에서도 쓰기를 허용하지 않습니다. 화면 메뉴는 변경하지 않았습니다.
 
 ## Supabase 학습용 테이블
 
@@ -84,12 +84,12 @@ Vercel 프로젝트 **Settings → Environment Variables**에 `SUPABASE_URL`, `S
 1. 로그아웃 상태에서 로그인 화면이 보입니다. 비밀번호가 틀린 계정으로 로그인하면 Supabase Auth의 오류 이유가 화면에 표시됩니다.
 2. A 계정으로 로그인하면 A 소유 메모만 표시됩니다. 본인 메모를 추가·수정·삭제한 뒤 목록이 갱신되는지 확인하세요.
 3. 로그아웃하면 로그인 화면으로 돌아가고 계정 자료가 화면에서 지워집니다.
-4. 시크릿 창에서 `GET /api/notes`를 열면 `401`입니다. 무로그인 `POST /api/notes`와 `GET /api/notes/<UUID>`도 `401`이어야 합니다.
+4. 시크릿 창에서 `GET /api/my/notes`를 열면 `401`입니다. 무로그인 `POST /api/notes`와 `GET /api/notes/<UUID>`도 `401`이어야 합니다.
 5. B 계정으로 로그인하면 B 소유 메모만 보여야 합니다. A 메모 UUID를 B의 GET·PUT·DELETE 경로에 넣으면 모두 `404`이고 A의 행은 그대로여야 합니다. A와 B 각각 본인 메모 CRUD도 확인하세요.
 6. `npm run build -- --local` 뒤 로컬 첫 화면 응답에 `X-Content-Type-Options: nosniff`가 있는지 확인하세요. Production 배포 뒤에도 같은 헤더가 와야 합니다.
 7. `close-direct-access.sql` 적용 뒤 원본 주소 `aleph.config.json`의 `originalApiUrl`에 공개용 키로 직접 보낸 읽기 요청은 HTTP `401`, `42501`, 반환 행 `0`이었습니다. SQL 적용 후 `anon`과 `authenticated`의 네 CRUD 권한은 모두 `false`입니다.
 
-자료 CRUD 경로는 `aleph.config.json`의 `allowedRoutes`에 실제 메서드별로 기록합니다: `GET`·`POST /api/notes`, `GET`·`PUT`·`DELETE /api/notes/:id`, `GET /api/announcements`, `GET`·`PUT /api/announcements/:id`. Auth 프록시의 token·user·logout 경로도 기록합니다. `originalApiUrl`은 쿼리 없는 Supabase REST 테이블 경로입니다.
+판정기 허용 경로는 `aleph.config.json`의 `allowedRoutes`와 맞춥니다: `GET /api/my/notes`, `GET /api/notes/:id`, `GET /notes/:id`, `GET /api/announcements`, `GET /api/announcements/:id`. 메모 추가·수정·삭제와 공지 수정은 API에서는 서버 검증 후 가능하지만, 엔진 계약에 소유자·강사 권한 증거가 없어 판정기의 허용 목록에서는 제외했습니다. Auth 프록시의 token·user·logout 경로도 기록합니다. `originalApiUrl`은 쿼리 없는 Supabase REST 테이블 경로입니다.
 
 현재 배포의 정적 파일 목록과 GitHub의 최신 `main` 파일에서 이전 가상 메모 문장이 남았는지 확인하려면, Vercel의 최신 Production 배포 파일 목록과 GitHub 저장소의 현재 파일을 각각 검색하세요. 로컬에서 GitHub 최신 트리를 검색하는 방법은 다음과 같습니다. `<이전 가상 메모 문장>`을 한 문장씩 실제 검색어로 바꿔 실행하고, 검색어 또는 결과를 저장소에 추가하지 마세요.
 

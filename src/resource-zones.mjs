@@ -3,10 +3,6 @@ export const RESOURCE_IDS = Object.freeze({
   instructorAnnouncements: 'instructor_announcements',
 });
 
-// A synthetic engine subject used only by local fixtures. Real instructor access
-// is managed in vault_instructor_access and must not come from request.role.
-export const INSTRUCTOR_SUBJECT_IDS = Object.freeze(['instructor_fixture']);
-
 const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 const NOTE_ITEM = new RegExp(`^/notes/${UUID}$`, 'iu');
 const ANNOUNCEMENT_ITEM = new RegExp(`^/announcements/${UUID}$`, 'iu');
@@ -24,28 +20,31 @@ function verifiedPathContext(request) {
     && typeof request.route === 'string';
 }
 
-function normalizeNotesApiPrefix(request) {
-  const apiPrefix = '/api/notes';
+function normalizeApiPrefix(request, resource) {
+  const apiPrefix = `/api/${resource}`;
   const routePrefix = `${request.method} ${apiPrefix}`;
   const hasApiPath = request.path === apiPrefix || request.path.startsWith(`${apiPrefix}/`);
   const hasApiRoute = request.route === routePrefix || request.route.startsWith(`${routePrefix}/`);
 
-  if (request.service !== 'notes' || !hasApiPath || !hasApiRoute) return request;
+  if (request.service !== resource || !hasApiPath || !hasApiRoute) return request;
 
   return {
     ...request,
     path: request.path.slice('/api'.length),
-    route: request.route.replace(routePrefix, `${request.method} /notes`),
+    route: request.route.replace(routePrefix, `${request.method} /${resource}`),
   };
 }
 
 export function classifyResourceRequest(request) {
   if (!verifiedPathContext(request)) return null;
-  const normalized = normalizeNotesApiPrefix(request);
+  const normalized = normalizeApiPrefix(normalizeApiPrefix(request, 'notes'), 'announcements');
   const { service, method, path, route } = normalized;
 
   if (service === 'notes') {
-    if (path === '/notes' && route === `${method} /notes` && ['GET', 'POST'].includes(method)) {
+    if (path === '/api/my/notes' && method === 'GET' && route === 'GET /api/my/notes') {
+      return { resourceId: RESOURCE_IDS.personalNotes, operation: 'read' };
+    }
+    if (path === '/notes' && route === `${method} /notes` && method === 'POST') {
       return { resourceId: RESOURCE_IDS.personalNotes, operation: method.toLowerCase() };
     }
     if (NOTE_ITEM.test(path) && route === `${method} /notes/:id`

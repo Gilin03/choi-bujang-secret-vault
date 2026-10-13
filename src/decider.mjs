@@ -1,5 +1,5 @@
 // ALEPH SDP 엔진이 확인한 계약 요청만 받습니다. 브라우저 헤더를 읽지 않습니다.
-import { classifyResourceRequest, INSTRUCTOR_SUBJECT_IDS } from './resource-zones.mjs';
+import { classifyResourceRequest } from './resource-zones.mjs';
 
 export const RULE_IDS = Object.freeze(['device_registered', 'step_up_required', 'resource_zone']);
 
@@ -86,39 +86,42 @@ export async function decide(request) {
   }
 
   const resource = classifyResourceRequest(request);
-  if (!resource || (resource.operation === 'instructor_update'
-      && !INSTRUCTOR_SUBJECT_IDS.includes(request.subjectId))) {
+  if (!resource) {
     return denyResourceResponse(request);
   }
 
   // Missing, unknown, malformed, or non-fixture signals are never filled with normal values.
   // A re-authentication challenge is temporary; only the engine can verify its completion.
   const context = verifiedFixtureContext(request);
+  let stepUpVerified = false;
   if (!context) {
     // The current live contract explicitly provides no location/network signals and
     // has no re-login verification contract. Do not turn missing telemetry into a
     // fabricated normal signal or block ordinary data requests with an unusable challenge.
-    if (request?.signals?.source === 'none') return allowResponse(request);
-    if (hasFreshEngineStepUp(request)) {
-      return allowResponse(request, true);
+    if (request?.signals?.source !== 'none') {
+      if (!hasFreshEngineStepUp(request)) return stepUpResponse(request);
+      stepUpVerified = true;
     }
-    return stepUpResponse(request);
+  } else {
+    const unusualHour = context.signals.hour < 6 || context.signals.hour >= 22;
+    const newNetwork = context.signals.network === 'unusual';
+    const highVolumeReads = context.events.some((event) => ['bulk_read', 'risk_signal'].includes(event.kind)
+      && event.count >= HIGH_VOLUME_COUNT
+      && event.ageSeconds <= HIGH_VOLUME_WINDOW_SECONDS);
+    const compositeAnomaly = unusualHour && newNetwork && highVolumeReads;
+
+    if (compositeAnomaly) {
+      if (!hasFreshEngineStepUp(request)) return stepUpResponse(request);
+      stepUpVerified = true;
+    }
   }
 
-  const unusualHour = context.signals.hour < 6 || context.signals.hour >= 22;
-  const newNetwork = context.signals.network === 'unusual';
-  const highVolumeReads = context.events.some((event) => ['bulk_read', 'risk_signal'].includes(event.kind)
-    && event.count >= HIGH_VOLUME_COUNT
-    && event.ageSeconds <= HIGH_VOLUME_WINDOW_SECONDS);
-  const compositeAnomaly = unusualHour && newNetwork && highVolumeReads;
-
-  if (!compositeAnomaly) {
-    return allowResponse(request);
+  // The engine contract carries no resource-owner or instructor proof.
+  // Keep API CRUD available behind its verified-user checks, but never allow
+  // an unproven mutation through the decider.
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method)) {
+    return denyResourceResponse(request);
   }
 
-  if (hasFreshEngineStepUp(request)) {
-    return allowResponse(request, true);
-  }
-
-  return stepUpResponse(request);
+  return allowResponse(request, stepUpVerified);
 }
