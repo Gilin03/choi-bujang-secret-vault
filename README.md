@@ -1,6 +1,6 @@
-# BYTE BACK 방어전 자료실 — 6단계
+# BYTE BACK 방어전 자료실 — 7단계
 
-이 저장소는 Supabase Auth 로그인과 서버 측 사용자별 소유권 검사를 유지하면서 메모 자료 요청을 Vercel 서버 함수로 모으는 6단계 학습용 자료실입니다. 메모 데이터는 가상 자료만 사용합니다.
+이 저장소는 Supabase Auth 로그인과 서버 측 사용자별 소유권 검사를 유지하면서 메모 자료 요청을 Vercel 서버 함수로 모으고, 엔진이 전달한 가상 접속 신호에 추가 확인 규칙을 적용하는 7단계 학습용 자료실입니다. 메모 데이터는 가상 자료만 사용합니다.
 
 이 프로젝트는 1단계에서 학생 본인의 GitHub 저장소와 Vercel 배포를 만든 시작 틀에서 이어집니다. 새로 시작하는 학생은 GitHub 계정을 만든 뒤 방어전 1단계 카드의 **Deploy** 흐름에서 본인 계정의 공개 저장소와 Vercel 프로젝트를 만들고, 배포 주소를 카드에 제출합니다. 이 자료실은 그 같은 저장소와 배포를 단계별로 보강합니다.
 
@@ -15,8 +15,16 @@
 - `SUPABASE_SECRET_KEY`는 자료 CRUD용 Vercel 서버 함수에서만 사용합니다. Auth 프록시는 별도 `SUPABASE_PUBLISHABLE_KEY` 환경변수를 사용합니다. 실제 키 값은 두 환경변수 모두 브라우저·응답·로그·GitHub·제출 묶음에 넣지 않습니다.
 - `/data.json`과 `public/data.json`은 없습니다. 옛 공개 Git 커밋과 옛 배포 이력은 남으므로, 과거 노출이 지워졌다고 보지 마세요.
 - 6단계 판정기는 계약의 `deviceRegistered` 값이 `true`일 때만 허용하고, `false` 또는 누락은 `device_not_registered`로 거부합니다. `npm run decider:test`는 등록·미등록·상태 누락 가상 요청을 확인하는 로컬 연습이며 실제 기기 등록이나 심판 판정의 증거가 아닙니다.
-- 로컬 점검: `node --test test/auth-proxy.test.mjs`, `npm run test:r5`, `npm run test:stage3`, `npm run build -- --local`, `npm run decider:test`.
+- 7단계 판정기는 검증 가능한 복합 이상 신호에 `step_up`을 요구하고, 계약의 최근 재확인만 통과한 새 판정 요청을 허용합니다. 지역 하나만으로 차단하지 않습니다.
+- 로컬 점검: `node --test test/auth-proxy.test.mjs`, `npm run test:r5`, `npm run test:stage3`, `npm run build -- --local`, `npm run decider:test`, `npm run fixture:7`, `node --test test/decider-stage7.test.mjs`.
 - 저장점 커밋과 실제 배포가 끝난 뒤 `npm run bundle`을 실행하면 실제 비로그인 요청의 상태만 제출 묶음에 기록합니다. 이 결과는 학생의 자체 점검이며 심판 판정이 아닙니다. A 계정의 정상 로그인과 메모 CRUD는 웹 화면에서 별도로 확인해야 합니다. `bundle-notes.json`과 `artifacts/submission.json`은 커밋하지 않습니다.
+
+## 7단계 이상 접속 추가 확인
+
+- 판정기는 브라우저 헤더를 읽지 않고 `docs/DECIDER_REQUEST.md` 계약의 `signals`와 `recentEvents`만 확인합니다. `signals.source`가 `judge_fixture`이고 지역·네트워크·시각 및 최근 사건 모양이 유효한 가상 요청만 규칙 평가에 씁니다. `none`, 누락, 불명확한 출처, 누락·잘못된 필드는 평소 값으로 채우지 않고 `step_up`으로 돌립니다.
+- 복합 이상 가상 사건은 이른/늦은 시각(0–5시 또는 22–23시), `network: unusual`, 최근 5분 안의 `bulk_read` 또는 호환 `risk_signal` 계수 20 이상이 함께 있을 때만 추가 확인합니다. 지역은 복합 조건에 포함하지 않으므로 외국 지역 하나만으로 추가 확인이나 차단을 하지 않습니다.
+- 추가 확인 전에는 `step_up_required`로 응답합니다. 새 요청의 엔진 검증 `stepUp.verified === true`와 `authAgeSeconds` 0–900초가 함께 있어야 재판정에서 허용하고, 미등록 기기는 기존 `device_not_registered` 거부가 우선합니다.
+- 요청 계약에는 엔진 검증 `stepUp` 필드가 있지만, 이 저장소에는 실제 로그인 화면·세션 갱신 엔진이 없습니다. `npm run fixture:7`, `npm run decider:test`, `node --test test/decider-stage7.test.mjs`는 가상 요청만 검증하며 실제 재로그인·자료 차단은 측정하지 않았습니다. 현재 계약의 실제 접속 신호 출처는 `none`이므로 실제 접속 데이터로 이상행동을 탐지했다고 주장하지 않습니다.
 
 ## Supabase 학습용 테이블
 

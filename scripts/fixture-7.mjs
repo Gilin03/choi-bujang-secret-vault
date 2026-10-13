@@ -15,7 +15,7 @@ export function fixtureRequests() {
   return {
     normal: request({ source: 'judge_fixture', region: 'local', network: 'usual', hour: 14 }, []),
     suspicious: request({ source: 'judge_fixture', region: 'foreign', network: 'unusual', hour: 3 },
-      [{ kind: 'risk_signal', ageSeconds: 60, count: 20 }]),
+      [{ kind: 'bulk_read', ageSeconds: 60, count: 20 }]),
   };
 }
 const check = (input, output) => output && typeof output === 'object'
@@ -31,10 +31,19 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     if (typeof decide !== 'function') throw new Error('src/decider.mjs에서 decide 함수를 내보내야 합니다.');
     const ordinary = await decide(normal);
     const unusual = await decide(suspicious);
-    if (!check(normal, ordinary) || !check(suspicious, unusual)) throw new Error('판정기 응답 형식이 맞지 않습니다.');
-    process.stdout.write(`정상 사건: ${ordinary.decision}\n복합 이상 사건: ${unusual.decision}\n`);
-    if (ordinary.decision !== 'allow' || unusual.decision !== 'step_up') {
-      throw new Error('정상 사건은 allow, 복합 이상 사건은 step_up이어야 합니다.');
+    const rechecked = {
+      ...suspicious,
+      requestId: randomUUID(),
+      stepUp: { verified: true, authAgeSeconds: 60 },
+    };
+    const confirmed = await decide(rechecked);
+    if (!check(normal, ordinary) || !check(suspicious, unusual) || !check(rechecked, confirmed)) {
+      throw new Error('판정기 응답 형식이 맞지 않습니다.');
+    }
+    process.stdout.write(`정상 사건: ${ordinary.decision}\n복합 이상 사건: ${unusual.decision}\n재확인 후 재판정: ${confirmed.decision}\n`);
+    if (ordinary.decision !== 'allow' || unusual.decision !== 'step_up'
+        || confirmed.decision !== 'allow') {
+      throw new Error('정상은 allow, 복합 이상은 step_up, 엔진 확인 뒤 재판정은 allow여야 합니다.');
     }
   } catch (error) {
     process.stderr.write(`가상 사건 첫 오류: ${error.message}\n`);
