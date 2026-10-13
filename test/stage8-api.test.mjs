@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { createNoteItemHandler } from '../src/notes-api.mjs';
+import { createNoteItemHandler, createNotesHandler } from '../src/notes-api.mjs';
 import { createAnnouncementHandler, createAnnouncementItemHandler } from '../src/announcements-api.mjs';
 import { RESOURCE_IDS } from '../src/resource-zones.mjs';
 
@@ -10,9 +10,15 @@ const teacherUser = '33333333-3333-4333-8333-333333333333';
 const noteA = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const noticeA = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 
-function createDatabase() {
+function createDatabase({ ignoreOwnerFilters = false, includeOtherOwnerNote = false } = {}) {
   const tables = {
-    vault_notes: [{ id: noteA, owner_id: userA, title: 'A memo', content: 'A body' }],
+    vault_notes: [
+      { id: noteA, owner_id: userA, title: 'A memo', content: 'A body' },
+      ...(includeOtherOwnerNote
+        ? [{ id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', owner_id: userB,
+          title: 'B memo', content: 'B body' }]
+        : []),
+    ],
     vault_announcements: [{ id: noticeA, title: 'Class notice', content: 'Original',
       updated_by: teacherUser, updated_at: '2026-10-01T00:00:00.000Z' }],
     vault_instructor_access: [{ user_id: teacherUser, active: true }],
@@ -33,7 +39,8 @@ function createDatabase() {
       async function execute(single) {
         calls.push({ table, action: query.action, filters: [...query.filters], payload: query.payload });
         const rows = tables[table] ?? [];
-        const selected = rows.filter(row => query.filters.every(([field, value]) => row[field] === value));
+        const selected = rows.filter(row => query.filters.every(([field, value]) =>
+          (ignoreOwnerFilters && field === 'owner_id') || row[field] === value));
         if (query.action === 'update') {
           for (const row of selected) Object.assign(row, query.payload);
         } else if (query.action === 'delete') {
@@ -54,8 +61,8 @@ const principals = new Map([
   ['fixture-judge', { kind: 'judge', userId: userA }],
 ]);
 
-function makeHandlers() {
-  const database = createDatabase();
+function makeHandlers({ ignoreOwnerFilters = false, includeOtherOwnerNote = false } = {}) {
+  const database = createDatabase({ ignoreOwnerFilters, includeOtherOwnerNote });
   const options = {
     env: { SUPABASE_URL: 'https://project.supabase.co', SUPABASE_SECRET_KEY: 'fixture-only-secret' },
     verifyLogin: async authorization => principals.get(authorization) ?? null,
@@ -66,6 +73,7 @@ function makeHandlers() {
   };
   return {
     database,
+    notes: createNotesHandler(options),
     note: createNoteItemHandler(options),
     announcements: createAnnouncementHandler(options),
     announcement: createAnnouncementItemHandler(options),
@@ -100,6 +108,35 @@ test('personal note item API keeps the stored owner check for a direct cross-zon
   assert.equal(database.tables.vault_notes[0].content, 'A body');
   assert.ok(database.calls.filter(call => call.table === 'vault_notes').some(call =>
     call.filters.some(([field, value]) => field === 'owner_id' && value === userB)));
+});
+
+test('personal note GET checks the stored owner before returning a row', async () => {
+  const { note, database } = makeHandlers({ ignoreOwnerFilters: true });
+
+  const ownerRead = await note.fetch(request(`/api/notes/${noteA}`, 'GET', 'fixture-a'));
+  const outsiderRead = await note.fetch(request(`/api/notes/${noteA}`, 'GET', 'fixture-b'));
+  const outsiderUpdate = await note.fetch(request(`/api/notes/${noteA}`, 'PUT', 'fixture-b', {
+    title: 'forged', body: 'forged', owner_id: userB,
+  }));
+  const outsiderDelete = await note.fetch(request(`/api/notes/${noteA}`, 'DELETE', 'fixture-b'));
+
+  assert.equal(ownerRead.status, 200);
+  assert.deepEqual(await ownerRead.json(), { id: noteA, title: 'A memo', body: 'A body' });
+  assert.deepEqual([outsiderRead.status, outsiderUpdate.status, outsiderDelete.status], [404, 404, 404]);
+  assert.equal(database.tables.vault_notes.length, 1);
+  assert.equal(database.tables.vault_notes[0].owner_id, userA);
+  assert.equal(database.tables.vault_notes[0].content, 'A body');
+});
+
+test('personal note list removes rows whose stored owner differs from the verified user', async () => {
+  const { notes } = makeHandlers({ ignoreOwnerFilters: true, includeOtherOwnerNote: true });
+
+  const response = await notes.fetch(request('/api/notes', 'GET', 'fixture-a'));
+
+  assert.equal(response.status, 200);
+  assert.deepEqual((await response.json()).notes, [
+    { id: noteA, title: 'A memo', body: 'A body' },
+  ]);
 });
 
 test('announcement resource has a distinct id, is readable by students, and is writable only by stored instructors', async () => {

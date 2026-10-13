@@ -10,19 +10,19 @@
 - 브라우저 파일에는 Supabase API 키가 없고 메모 테이블을 직접 읽거나 고치는 Data API 호출도 없습니다. `signInWithPassword`, `signOut`, `getSession` 호출은 유지합니다. 메모 CRUD는 아래 Vercel 자료 함수만 호출합니다.
 - `/api/auth-proxy/token`, `/api/auth-proxy/user`, `/api/auth-proxy/logout`은 각각 고정된 Vercel 함수이며 해당 Auth 경로만 허용합니다. 로그인 요청은 Supabase로 HTTPS 전달되며 프록시는 요청 본문이나 자격 증명을 로그에 쓰지 않습니다. 이 공개 경로는 로그인을 중개할 뿐, 로그인 시도 자체를 제한하지 않습니다.
 - 자료 API는 `src/verify-login.mjs`로 Supabase 발급자·대상·만료를 확인합니다. 요청의 브라우저 `userId`, `role`, `owner_id`를 신뢰하지 않고, 확인한 사용자 ID를 새 메모의 `owner_id`로 저장합니다.
-- `GET /api/notes`는 로그인한 사용자의 메모만 반환합니다. `POST /api/notes`는 메모를 추가하고, `GET`, `PUT`, `DELETE /api/notes/:id`도 본인 소유 행만 처리합니다. 다른 사용자 소유 ID와 없는 ID는 모두 `404`이며, 수정 뒤에도 `owner_id`가 본인인지 확인합니다.
+- `GET /api/notes`는 로그인한 사용자의 메모만 반환합니다. `POST /api/notes`는 메모를 추가하고, `GET`, `PUT`, `DELETE /api/notes/:id`는 검증한 사용자 ID와 저장된 `owner_id`를 대조한 뒤 처리합니다. 수정·삭제는 변경 전에 소유자를 확인하고, 변경 후에도 소유자를 확인합니다. 다른 사용자 소유 ID와 없는 ID는 모두 `404`입니다.
 - 비로그인 API 요청은 `401`로 거부됩니다. A/B 교차 계정의 단건 읽기·수정·삭제는 테스트에서 `404`로 거부되고, 본인 메모 CRUD는 허용됩니다.
 - `SUPABASE_SECRET_KEY`는 자료 CRUD용 Vercel 서버 함수에서만 사용합니다. Auth 프록시는 별도 `SUPABASE_PUBLISHABLE_KEY` 환경변수를 사용합니다. 실제 키 값은 두 환경변수 모두 브라우저·응답·로그·GitHub·제출 묶음에 넣지 않습니다.
 - `/data.json`과 `public/data.json`은 없습니다. 옛 공개 Git 커밋과 옛 배포 이력은 남으므로, 과거 노출이 지워졌다고 보지 마세요.
 - 6단계 판정기는 계약의 `deviceRegistered` 값이 `true`일 때만 허용하고, `false` 또는 누락은 `device_not_registered`로 거부합니다. `npm run decider:test`는 등록·미등록·상태 누락 가상 요청을 확인하는 로컬 연습이며 실제 기기 등록이나 심판 판정의 증거가 아닙니다.
-- 7단계 판정기는 검증 가능한 복합 이상 신호에 `step_up`을 요구하고, 계약의 최근 재확인만 통과한 새 판정 요청을 허용합니다. 지역 하나만으로 차단하지 않습니다.
-- 8단계 자원 ID는 `student_notes`와 `instructor_announcements`로 분리했습니다. 메모는 기존 API 경로와 사용자별 소유자 제한을 유지하고, 강사 공지는 별도 API에서 저장된 강사 권한을 확인합니다.
+- 7단계 판정기는 가상 접속 신호의 출처와 모양을 검사해 복합 이상 사건에 `step_up`을 요구합니다. 현재 실제 계약은 위치·네트워크 신호와 재로그인 확인 기능을 제공하지 않으므로 `source: none` 요청에는 신호를 꾸며 넣지 않고 정상 기기·허용 경로 규칙만 적용합니다. 지역 하나만으로 차단하지 않습니다.
+- 8단계 자원 ID는 `student_notes`와 `instructor_announcements`로 분리했습니다. 메모 API는 DB 필터와 응답 직전의 저장된 소유자 대조를 함께 하고, 강사 공지는 별도 API에서 저장된 강사 권한을 확인합니다.
 - 로컬 점검: `node --test test/auth-proxy.test.mjs`, `npm run test:r5`, `npm run test:stage3`, `npm run build -- --local`, `npm run decider:test`, `npm run fixture:7`, `node --test test/decider-stage7.test.mjs`, `npm run test:stage8`.
 - 저장점 커밋과 실제 배포가 끝난 뒤 `npm run bundle`을 실행하면 실제 비로그인 요청의 상태만 제출 묶음에 기록합니다. 이 결과는 학생의 자체 점검이며 심판 판정이 아닙니다. A 계정의 정상 로그인과 메모 CRUD는 웹 화면에서 별도로 확인해야 합니다. `bundle-notes.json`과 `artifacts/submission.json`은 커밋하지 않습니다.
 
 ## 7단계 이상 접속 추가 확인
 
-- 판정기는 브라우저 헤더를 읽지 않고 `docs/DECIDER_REQUEST.md` 계약의 `signals`와 `recentEvents`만 확인합니다. `signals.source`가 `judge_fixture`이고 지역·네트워크·시각 및 최근 사건 모양이 유효한 가상 요청만 규칙 평가에 씁니다. `none`, 누락, 불명확한 출처, 누락·잘못된 필드는 평소 값으로 채우지 않고 `step_up`으로 돌립니다.
+- 판정기는 브라우저 헤더를 읽지 않고 `docs/DECIDER_REQUEST.md` 계약의 `signals`와 `recentEvents`만 확인합니다. `signals.source`가 `judge_fixture`이고 지역·네트워크·시각 및 최근 사건 모양이 유효한 가상 요청만 이상 규칙 평가에 씁니다. 운영 계약의 `source: none`은 위치·네트워크 증거가 없다는 뜻이며 정상값을 만들어 내지 않습니다. 실제 재로그인 확인 계약이 없으므로 이 경로는 기기·자원 규칙을 통과하면 자료 요청을 막지 않습니다. 클라이언트 출처, 누락·잘못된 필드, 불명확한 출처는 신뢰 신호로 승격하지 않고 `step_up`을 요구합니다.
 - 복합 이상 가상 사건은 이른/늦은 시각(0–5시 또는 22–23시), `network: unusual`, 최근 5분 안의 `bulk_read` 또는 호환 `risk_signal` 계수 20 이상이 함께 있을 때만 추가 확인합니다. 지역은 복합 조건에 포함하지 않으므로 외국 지역 하나만으로 추가 확인이나 차단을 하지 않습니다.
 - 추가 확인 전에는 `step_up_required`로 응답합니다. 새 요청의 엔진 검증 `stepUp.verified === true`와 `authAgeSeconds` 0–900초가 함께 있어야 재판정에서 허용하고, 미등록 기기는 기존 `device_not_registered` 거부가 우선합니다.
 - 요청 계약에는 엔진 검증 `stepUp` 필드가 있지만, 이 저장소에는 실제 로그인 화면·세션 갱신 엔진이 없습니다. `npm run fixture:7`, `npm run decider:test`, `node --test test/decider-stage7.test.mjs`는 가상 요청만 검증하며 실제 재로그인·자료 차단은 측정하지 않았습니다. 현재 계약의 실제 접속 신호 출처는 `none`이므로 실제 접속 데이터로 이상행동을 탐지했다고 주장하지 않습니다.
@@ -35,7 +35,7 @@
 - `supabase/stage8-resource-zones.sql`은 기존 `vault_notes`와 그 권한을 바꾸지 않고 `vault_announcements`, `vault_instructor_access`만 추가합니다. 두 테이블은 RLS를 켜고 `PUBLIC`, `anon`, `authenticated` 권한을 회수하며, 서버 함수에 필요한 `service_role`의 공지 `SELECT/UPDATE`와 권한표 `SELECT`만 남깁니다. 실제 강사 계정은 운영자가 확인한 Supabase 사용자 UUID로 `vault_instructor_access`에 등록해야 합니다. 임의로 학생을 강사로 지정하지 않았습니다.
 - 연결된 `defense` DB에는 두 테이블을 추가했고, 확인 결과 현재 공지 0건·강사 권한 0건입니다. 두 테이블 모두 RLS가 켜졌고 anon/authenticated SELECT·UPDATE는 `false`; `service_role`은 공지 SELECT·UPDATE와 강사표 SELECT만 가능합니다. 아직 실제 강사 계정을 등록하지 않았으므로 실제 계정의 공지 PUT은 기본 거부됩니다. 승인된 강사 등록은 관리자 권한으로 확인한 UUID만 사용하세요.
 - 판정기 연습에서 `instructor_fixture`는 가상 강사 subject ID일 뿐입니다. 실제 강사 subject ID 매핑과 `resource_not_authorized` 이유 코드 등록 여부는 반 엔진 운영 설정에 달려 있으며, 이 저장소만으로 운영 엔진을 변경했다고 주장하지 않습니다.
-- `npm run test:stage8`은 등록 학생의 본인 메모 경로·가상 강사 공지 수정은 허용하고, 다른 학생의 메모 직접 API 접근은 `404`, 일반 학생의 공지 수정은 `403`, 알 수 없는 API 경로는 `404`인지 확인합니다. 화면 메뉴는 변경하지 않았습니다.
+- `npm run test:stage8`은 등록 학생의 본인 메모 경로·가상 강사 공지 수정은 허용하고, 다른 학생의 메모 직접 API 접근은 `404`, 일반 학생의 공지 수정은 `403`, 알 수 없는 API 경로는 `404`인지 확인합니다. 소유자 DB 필터를 무시하는 테스트 조건에서도 API가 저장된 소유자를 비교해 교차 읽기·수정·삭제를 거부하는지 확인합니다. 화면 메뉴는 변경하지 않았습니다.
 
 ## Supabase 학습용 테이블
 

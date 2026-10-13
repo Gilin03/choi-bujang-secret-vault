@@ -41,6 +41,18 @@ test('resource zoning keeps a registered student on the personal note read/updat
   assert.ok(update.ruleIds.includes('resource_zone'));
 });
 
+test('the live no-signal contract does not block a normal personal-note request', async () => {
+  const liveRequest = request({
+    signals: { source: 'none', region: 'unknown', network: 'unknown', hour: null },
+    recentEvents: [],
+  });
+
+  const result = await decide(liveRequest);
+
+  assert.equal(result.decision, 'allow');
+  assert.equal(result.reasonCode, 'approved');
+});
+
 test('only the engine-mapped instructor fixture can update announcement resources', async () => {
   const instructor = await decide(request({
     subjectId: 'instructor_fixture',

@@ -95,6 +95,10 @@ export async function decide(request) {
   // A re-authentication challenge is temporary; only the engine can verify its completion.
   const context = verifiedFixtureContext(request);
   if (!context) {
+    // The current live contract explicitly provides no location/network signals and
+    // has no re-login verification contract. Do not turn missing telemetry into a
+    // fabricated normal signal or block ordinary data requests with an unusable challenge.
+    if (request?.signals?.source === 'none') return allowResponse(request);
     if (hasFreshEngineStepUp(request)) {
       return allowResponse(request, true);
     }
