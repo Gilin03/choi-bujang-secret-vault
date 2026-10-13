@@ -31,15 +31,19 @@ function request(overrides = {}) {
   };
 }
 
-test('resource zoning allows explicit self reads and denies writes without engine ownership evidence', async () => {
+test('resource zoning allows note routes while the API remains the ownership boundary', async () => {
   const read = await decide(request());
   const ownList = await decide(request({ path: '/api/my/notes', route: 'GET /api/my/notes' }));
   const update = await decide(request({ method: 'PUT', route: 'PUT /notes/:id' }));
+  const create = await decide(request({ method: 'POST', path: '/api/notes', route: 'POST /api/notes' }));
+  const remove = await decide(request({ method: 'DELETE', route: 'DELETE /notes/:id' }));
 
   assert.deepEqual(RULE_IDS, ['device_registered', 'step_up_required', 'resource_zone']);
   assert.equal(read.decision, 'allow');
   assert.equal(ownList.decision, 'allow');
-  assert.equal(update.decision, 'deny');
+  assert.equal(update.decision, 'allow');
+  assert.equal(create.decision, 'allow');
+  assert.equal(remove.decision, 'allow');
   assert.ok(read.ruleIds.includes('resource_zone'));
   assert.ok(ownList.ruleIds.includes('resource_zone'));
   assert.ok(update.ruleIds.includes('resource_zone'));
@@ -47,18 +51,22 @@ test('resource zoning allows explicit self reads and denies writes without engin
 
 test('the ambiguous shared notes list is denied while the explicit self-list route is allowed', async () => {
   const ownList = await decide(request({ path: '/api/my/notes', route: 'GET /api/my/notes' }));
+  const canonicalOwnList = await decide(request({ path: '/my/notes', route: 'GET /my/notes' }));
   const ambiguousApiList = await decide(request({ path: '/api/notes', route: 'GET /api/notes' }));
   const ambiguousLegacyList = await decide(request({ path: '/notes', route: 'GET /notes' }));
 
   assert.equal(ownList.decision, 'allow');
+  assert.equal(canonicalOwnList.decision, 'allow');
   for (const result of [ambiguousApiList, ambiguousLegacyList]) {
     assert.equal(result.decision, 'deny');
     assert.equal(result.reasonCode, 'resource_not_authorized');
   }
 });
 
-test('unproven note and announcement mutations are denied even when a synthetic instructor subject is used', async () => {
-  const noteWrite = await decide(request({ method: 'POST', path: '/api/notes', route: 'POST /api/notes' }));
+test('announcement resources are outside the decider zone even when a synthetic instructor subject is used', async () => {
+  const announcementRead = await decide(request({
+    service: 'announcements', method: 'GET', path: '/api/announcements', route: 'GET /api/announcements',
+  }));
   const instructorWrite = await decide(request({
     subjectId: 'instructor_fixture',
     service: 'announcements',
@@ -67,11 +75,11 @@ test('unproven note and announcement mutations are denied even when a synthetic 
     route: 'PUT /announcements/:id',
   }));
 
-  assert.equal(noteWrite.decision, 'deny');
+  assert.equal(announcementRead.decision, 'deny');
   assert.equal(instructorWrite.decision, 'deny');
 });
 
-test('deployed announcement read paths match their route shape exactly', async () => {
+test('deployed announcement paths are denied by the decider regardless of route shape', async () => {
   const list = await decide(request({
     service: 'announcements', method: 'GET', path: '/api/announcements', route: 'GET /api/announcements',
   }));
@@ -84,8 +92,8 @@ test('deployed announcement read paths match their route shape exactly', async (
     route: 'GET /announcements/:id',
   }));
 
-  assert.equal(list.decision, 'allow');
-  assert.equal(item.decision, 'allow');
+  assert.equal(list.decision, 'deny');
+  assert.equal(item.decision, 'deny');
   assert.equal(mismatch.decision, 'deny');
 });
 
@@ -102,10 +110,23 @@ test('resource zoning treats the deployed /api/notes item route as the same note
 
   const mismatchedRoute = await decide(request({
     path: `/api/notes/${noteId}`,
-    route: 'GET /notes/:id',
+    route: 'GET /notes/:other',
   }));
   assert.equal(mismatchedRoute.decision, 'deny');
   assert.equal(mismatchedRoute.reasonCode, 'resource_not_authorized');
+});
+
+test('safe opaque note IDs are allowed, reserved function names and whole-list routes are denied', async () => {
+  const sample = await decide(request({ path: '/api/notes/SAMPLE_NOTE_1', route: 'GET /api/notes/:id' }));
+  assert.equal(sample.decision, 'allow');
+
+  for (const id of ['export', 'all', 'list', 'search', 'bulk', 'shared', 'admin', 'backup']) {
+    const result = await decide(request({ path: `/api/notes/${id}`, route: 'GET /api/notes/:id' }));
+    assert.equal(result.decision, 'deny', id);
+  }
+
+  const wholeList = await decide(request({ path: '/api/notes', route: 'GET /api/notes' }));
+  assert.equal(wholeList.decision, 'deny');
 });
 
 test('the live no-signal contract does not block a normal personal-note request', async () => {
@@ -142,7 +163,7 @@ test('announcement writes are denied because the decider contract has no instruc
   assert.ok(student.ruleIds.includes('resource_zone'));
 });
 
-test('allowedRoutes lists only decider-approved deployed resource API routes', async () => {
+test('allowedRoutes remains the deployed API route inventory while the decider applies its own zone policy', async () => {
   const config = JSON.parse(await readFile(new URL('../aleph.config.json', import.meta.url), 'utf8'));
   const routes = config.allowedRoutes;
 

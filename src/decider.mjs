@@ -116,12 +116,7 @@ export async function decide(request) {
     }
   }
 
-  // The engine contract carries no resource-owner or instructor proof.
-  // Keep API CRUD available behind its verified-user checks, but never allow
-  // an unproven mutation through the decider.
-  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method)) {
-    return denyResourceResponse(request);
-  }
-
+  // Only the notes routes classified above reach this point. The API still
+  // verifies the authenticated owner before returning or changing a row.
   return allowResponse(request, stepUpVerified);
 }

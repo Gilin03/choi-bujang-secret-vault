@@ -3,9 +3,7 @@ export const RESOURCE_IDS = Object.freeze({
   instructorAnnouncements: 'instructor_announcements',
 });
 
-const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 const NOTE_ITEM = /^\/notes\/(?!export$|exports$|download$|all$|list$|search$|bulk$|batch$|share$|shared$|public$|admin$|backup$|dump$|import$|sync$|raw$|query$|count$|report$|stats$|owner$|owners$|user$|users$|others$|any$|notices$|notes$)[A-Za-z0-9_-]{1,64}$/iu;
-const ANNOUNCEMENT_ITEM = new RegExp(`^/announcements/${UUID}$`, 'iu');
 
 function verifiedPathContext(request) {
   return request && typeof request === 'object'
@@ -20,50 +18,29 @@ function verifiedPathContext(request) {
     && typeof request.route === 'string';
 }
 
-function normalizeApiPrefix(request, resource) {
-  const apiPrefix = `/api/${resource}`;
-  const routePrefix = `${request.method} ${apiPrefix}`;
-  const hasApiPath = request.path === apiPrefix || request.path.startsWith(`${apiPrefix}/`);
-  const hasApiRoute = request.route === routePrefix || request.route.startsWith(`${routePrefix}/`);
-
-  if (request.service !== resource || !hasApiPath || !hasApiRoute) return request;
-
-  return {
-    ...request,
-    path: request.path.slice('/api'.length),
-    route: request.route.replace(routePrefix, `${request.method} /${resource}`),
-  };
+function stripApiPrefix(path) {
+  return path.replace(/^\/api(?=\/)/u, '');
 }
 
 export function classifyResourceRequest(request) {
   if (!verifiedPathContext(request)) return null;
-  const normalized = normalizeApiPrefix(normalizeApiPrefix(request, 'notes'), 'announcements');
-  const { service, method, path, route } = normalized;
+  const { service, method } = request;
+  if (service !== 'notes') return null;
 
-  if (service === 'notes') {
-    if (path === '/api/my/notes' && method === 'GET' && route === 'GET /api/my/notes') {
-      return { resourceId: RESOURCE_IDS.personalNotes, operation: 'read' };
-    }
-    if (path === '/notes' && route === `${method} /notes` && method === 'POST') {
-      return { resourceId: RESOURCE_IDS.personalNotes, operation: method.toLowerCase() };
-    }
-    if (NOTE_ITEM.test(path) && route === `${method} /notes/:id`
-        && ['GET', 'PUT', 'DELETE'].includes(method)) {
-      return { resourceId: RESOURCE_IDS.personalNotes, operation: method.toLowerCase() };
-    }
-    return null;
+  const path = stripApiPrefix(request.path);
+  const routeParts = request.route.split(' ');
+  if (routeParts.length !== 2 || routeParts[0] !== method) return null;
+  const route = stripApiPrefix(routeParts[1]);
+
+  if (method === 'GET' && path === '/my/notes' && route === '/my/notes') {
+    return { resourceId: RESOURCE_IDS.personalNotes, operation: 'read' };
   }
-
-  if (service === 'announcements') {
-    if (path === '/announcements' && method === 'GET' && route === 'GET /announcements') {
-      return { resourceId: RESOURCE_IDS.instructorAnnouncements, operation: 'read' };
-    }
-    if (ANNOUNCEMENT_ITEM.test(path) && method === 'GET' && route === 'GET /announcements/:id') {
-      return { resourceId: RESOURCE_IDS.instructorAnnouncements, operation: 'read' };
-    }
-    if (ANNOUNCEMENT_ITEM.test(path) && method === 'PUT' && route === 'PUT /announcements/:id') {
-      return { resourceId: RESOURCE_IDS.instructorAnnouncements, operation: 'instructor_update' };
-    }
+  if (method === 'POST' && path === '/notes' && route === '/notes') {
+    return { resourceId: RESOURCE_IDS.personalNotes, operation: 'post' };
+  }
+  if (NOTE_ITEM.test(path) && route === '/notes/:id'
+      && ['GET', 'PUT', 'DELETE'].includes(method)) {
+    return { resourceId: RESOURCE_IDS.personalNotes, operation: method.toLowerCase() };
   }
 
   return null;
