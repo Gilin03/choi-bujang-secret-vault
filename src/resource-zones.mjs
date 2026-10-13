@@ -4,7 +4,7 @@ export const RESOURCE_IDS = Object.freeze({
 });
 
 const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
-const NOTE_ITEM = new RegExp(`^/notes/${UUID}$`, 'iu');
+const NOTE_ITEM = /^\/notes\/(?!export$|exports$|download$|all$|list$|search$|bulk$|batch$|share$|shared$|public$|admin$|backup$|dump$|import$|sync$|raw$|query$|count$|report$|stats$|owner$|owners$|user$|users$|others$|any$|notices$|notes$)[A-Za-z0-9_-]{1,64}$/iu;
 const ANNOUNCEMENT_ITEM = new RegExp(`^/announcements/${UUID}$`, 'iu');
 
 function verifiedPathContext(request) {
