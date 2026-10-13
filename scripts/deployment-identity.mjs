@@ -12,6 +12,12 @@ function isQuerylessHttpsUrl(value) {
   }
 }
 
+function isPublicVercelUrl(value) {
+  if (!isQuerylessHttpsUrl(value)) return false;
+  const url = new URL(value);
+  return HOST.test(url.hostname) && url.pathname === '/';
+}
+
 export function deploymentIdentity(env, config) {
   const owner = env.VERCEL_GIT_REPO_OWNER;
   const repo = env.VERCEL_GIT_REPO_SLUG;
@@ -20,7 +26,8 @@ export function deploymentIdentity(env, config) {
   if (env.VERCEL_GIT_PROVIDER !== 'github' || !OWNER.test(owner || '')
       || !REPO.test(repo || '') || repo === '.' || repo === '..'
       || repo.toLowerCase().endsWith('.git') || !SHA.test(commit || '')
-      || !HOST.test(host || '') || !Number.isInteger(config?.step)
+      || !HOST.test(host || '') || !isPublicVercelUrl(config?.publicAppUrl)
+      || !Number.isInteger(config?.step)
       || config.step < 2 || config.step > 12
       || typeof config.judgeIssuer !== 'string'
       || !/^https:\/\/[a-z0-9-]+\.up\.railway\.app\/defense\/judge$/iu.test(config.judgeIssuer)
@@ -37,7 +44,7 @@ export function deploymentIdentity(env, config) {
     step: config.step,
     repoUrl: `https://github.com/${owner.toLowerCase()}/${repo.toLowerCase()}`,
     commit: commit.toLowerCase(),
-    publicAppUrl: `https://${host.toLowerCase()}`,
+    publicAppUrl: config.publicAppUrl,
     judgeIssuer: config.judgeIssuer,
     sampleMarker: config.sampleMarker,
     allowedRoutes: config.allowedRoutes ?? [],
