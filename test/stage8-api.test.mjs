@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createNoteItemHandler, createNotesHandler } from '../src/notes-api.mjs';
 import { createAnnouncementHandler, createAnnouncementItemHandler } from '../src/announcements-api.mjs';
+import { decide } from '../src/decider.mjs';
 import { RESOURCE_IDS } from '../src/resource-zones.mjs';
 
 const userA = '11111111-1111-4111-8111-111111111111';
@@ -91,6 +92,29 @@ function request(path, method = 'GET', authorization, body) {
   });
 }
 
+function engineNoteRequest(subjectId, method = 'GET') {
+  return {
+    schema: 'aleph.decision.v1',
+    requestId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+    classId: 'class_fixture',
+    projectId: 'project_fixture',
+    subjectId,
+    deviceId: '0123456789abcdef',
+    service: 'notes',
+    method,
+    path: `/api/notes/${noteA}`,
+    route: `${method} /api/notes/:id`,
+    queryLength: 0,
+    querySha256: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+    at: '2026-10-13T00:00:00.000Z',
+    policyRevision: 8,
+    deviceRegistered: true,
+    stepUp: { verified: false, authAgeSeconds: null },
+    recentEvents: [],
+    signals: { source: 'none', region: 'unknown', network: 'unknown', hour: null },
+  };
+}
+
 test('personal note item API keeps the stored owner check for a direct cross-zone request', async () => {
   const { note, database } = makeHandlers();
   const ownerRead = await note.fetch(request(`/api/notes/${noteA}`, 'GET', 'fixture-a'));
@@ -126,6 +150,37 @@ test('personal note GET checks the stored owner before returning a row', async (
   assert.equal(database.tables.vault_notes.length, 1);
   assert.equal(database.tables.vault_notes[0].owner_id, userA);
   assert.equal(database.tables.vault_notes[0].content, 'A body');
+});
+
+test('deployed /api note path reaches the same zone, while the API enforces stored ownership', async () => {
+  const { note, notes, database } = makeHandlers({
+    ignoreOwnerFilters: true,
+    includeOtherOwnerNote: true,
+  });
+
+  const ownerDecision = await decide(engineNoteRequest('opaque-engine-subject-a'));
+  const otherSubjectDecision = await decide(engineNoteRequest('opaque-engine-subject-b'));
+  assert.equal(ownerDecision.decision, 'allow');
+  assert.equal(otherSubjectDecision.decision, 'allow');
+  assert.ok(ownerDecision.ruleIds.includes('resource_zone'));
+  assert.ok(otherSubjectDecision.ruleIds.includes('resource_zone'));
+
+  const ownerRead = await note.fetch(request(`/api/notes/${noteA}`, 'GET', 'fixture-a'));
+  const otherRead = await note.fetch(request(`/api/notes/${noteA}`, 'GET', 'fixture-b'));
+  const otherUpdate = await note.fetch(request(`/api/notes/${noteA}`, 'PUT', 'fixture-b', {
+    title: 'forged', body: 'forged', owner_id: userB,
+  }));
+  const ownerList = await notes.fetch(request('/api/notes', 'GET', 'fixture-a'));
+
+  assert.equal(ownerRead.status, 200);
+  assert.deepEqual(await ownerRead.json(), { id: noteA, title: 'A memo', body: 'A body' });
+  assert.deepEqual([otherRead.status, otherUpdate.status], [404, 404]);
+  assert.equal(ownerList.status, 200);
+  assert.deepEqual((await ownerList.json()).notes, [
+    { id: noteA, title: 'A memo', body: 'A body' },
+  ]);
+  assert.equal(database.tables.vault_notes.find(row => row.id === noteA).owner_id, userA);
+  assert.equal(database.tables.vault_notes.find(row => row.id === noteA).content, 'A body');
 });
 
 test('personal note list removes rows whose stored owner differs from the verified user', async () => {

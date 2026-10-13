@@ -41,6 +41,25 @@ test('resource zoning keeps a registered student on the personal note read/updat
   assert.ok(update.ruleIds.includes('resource_zone'));
 });
 
+test('resource zoning treats the deployed /api/notes item route as the same note resource', async () => {
+  const canonical = await decide(request());
+  const deployed = await decide(request({
+    path: `/api/notes/${noteId}`,
+    route: 'GET /api/notes/:id',
+  }));
+
+  assert.equal(deployed.decision, canonical.decision);
+  assert.equal(deployed.reasonCode, canonical.reasonCode);
+  assert.ok(deployed.ruleIds.includes('resource_zone'));
+
+  const mismatchedRoute = await decide(request({
+    path: `/api/notes/${noteId}`,
+    route: 'GET /notes/:id',
+  }));
+  assert.equal(mismatchedRoute.decision, 'deny');
+  assert.equal(mismatchedRoute.reasonCode, 'resource_not_authorized');
+});
+
 test('the live no-signal contract does not block a normal personal-note request', async () => {
   const liveRequest = request({
     signals: { source: 'none', region: 'unknown', network: 'unknown', hour: null },

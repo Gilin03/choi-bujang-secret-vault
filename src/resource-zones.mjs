@@ -24,9 +24,25 @@ function verifiedPathContext(request) {
     && typeof request.route === 'string';
 }
 
+function normalizeNotesApiPrefix(request) {
+  const apiPrefix = '/api/notes';
+  const routePrefix = `${request.method} ${apiPrefix}`;
+  const hasApiPath = request.path === apiPrefix || request.path.startsWith(`${apiPrefix}/`);
+  const hasApiRoute = request.route === routePrefix || request.route.startsWith(`${routePrefix}/`);
+
+  if (request.service !== 'notes' || !hasApiPath || !hasApiRoute) return request;
+
+  return {
+    ...request,
+    path: request.path.slice('/api'.length),
+    route: request.route.replace(routePrefix, `${request.method} /notes`),
+  };
+}
+
 export function classifyResourceRequest(request) {
   if (!verifiedPathContext(request)) return null;
-  const { service, method, path, route } = request;
+  const normalized = normalizeNotesApiPrefix(request);
+  const { service, method, path, route } = normalized;
 
   if (service === 'notes') {
     if (path === '/notes' && route === `${method} /notes` && ['GET', 'POST'].includes(method)) {
