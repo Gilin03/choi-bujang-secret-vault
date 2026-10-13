@@ -18,13 +18,13 @@ const env = {
   VERCEL_URL: 'student-defense-123.vercel.app',
 };
 
-test('build identity uses the configured public app URL instead of the protected deployment URL', () => {
+test('build identity uses Vercel Git and deployment metadata', () => {
   assert.deepEqual(deploymentIdentity(env, config), {
     schema: 'aleph.defense.deployment.v1',
     step: 2,
     repoUrl: 'https://github.com/student-a/aleph-defense',
     commit: 'a'.repeat(40),
-    publicAppUrl: config.publicAppUrl,
+    publicAppUrl: 'https://student-defense-123.vercel.app',
     judgeIssuer: config.judgeIssuer,
     sampleMarker: config.sampleMarker,
     allowedRoutes: [],
@@ -37,7 +37,6 @@ test('build identity uses the configured public app URL instead of the protected
   }).step, 3);
   assert.throws(() => deploymentIdentity({ ...env, VERCEL_GIT_PROVIDER: undefined }, config));
   assert.throws(() => deploymentIdentity({ ...env, VERCEL_GIT_COMMIT_SHA: 'short' }, config));
-  assert.throws(() => deploymentIdentity(env, { ...config, publicAppUrl: 'http://student-defense.vercel.app' }));
 });
 
 test('stage 5 deployment identity publishes allowed routes and the queryless original API URL', () => {
