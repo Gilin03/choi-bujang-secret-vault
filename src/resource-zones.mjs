@@ -4,15 +4,8 @@ export const RESOURCE_IDS = Object.freeze({
 });
 
 const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
-const SAFE_RESOURCE_ID = '(?!\\.{1,2}$)[^/?#%\\\\\\x00-\\x1f]+';
-const RESERVED_RESOURCE_IDS = new Set(['export', 'backup', 'restore', 'admin', 'all', 'upload']);
-const NOTE_ITEM = new RegExp(`^/notes/${SAFE_RESOURCE_ID}$`, 'iu');
+const NOTE_ITEM = new RegExp(`^/notes/${UUID}$`, 'iu');
 const ANNOUNCEMENT_ITEM = new RegExp(`^/announcements/${UUID}$`, 'iu');
-
-function hasReservedResourceId(path, prefix) {
-  const id = path.slice(`${prefix}/`.length).toLowerCase();
-  return RESERVED_RESOURCE_IDS.has(id);
-}
 
 function verifiedPathContext(request) {
   return request && typeof request === 'object'
@@ -54,8 +47,7 @@ export function classifyResourceRequest(request) {
     if (path === '/notes' && route === `${method} /notes` && method === 'POST') {
       return { resourceId: RESOURCE_IDS.personalNotes, operation: method.toLowerCase() };
     }
-    if (NOTE_ITEM.test(path) && !hasReservedResourceId(path, '/notes')
-        && route === `${method} /notes/:id`
+    if (NOTE_ITEM.test(path) && route === `${method} /notes/:id`
         && ['GET', 'PUT', 'DELETE'].includes(method)) {
       return { resourceId: RESOURCE_IDS.personalNotes, operation: method.toLowerCase() };
     }

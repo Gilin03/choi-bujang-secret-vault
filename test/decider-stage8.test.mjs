@@ -108,21 +108,6 @@ test('resource zoning treats the deployed /api/notes item route as the same note
   assert.equal(mismatchedRoute.reasonCode, 'resource_not_authorized');
 });
 
-test('self-note reads accept opaque safe IDs while rejecting same-depth function routes', async () => {
-  const opaqueId = await decide(request({
-    path: '/api/notes/SAMPLE_NOTE_1',
-    route: 'GET /api/notes/:id',
-  }));
-  const functionRoute = await decide(request({
-    path: '/api/notes/export',
-    route: 'GET /api/notes/:id',
-  }));
-
-  assert.equal(opaqueId.decision, 'allow');
-  assert.equal(functionRoute.decision, 'deny');
-  assert.equal(functionRoute.reasonCode, 'resource_not_authorized');
-});
-
 test('the live no-signal contract does not block a normal personal-note request', async () => {
   const liveRequest = request({
     signals: { source: 'none', region: 'unknown', network: 'unknown', hour: null },
