@@ -1,5 +1,7 @@
 // ALEPH SDP 엔진이 확인한 계약 요청만 받습니다. 브라우저 헤더를 읽지 않습니다.
-export const RULE_IDS = Object.freeze(['device_registered', 'step_up_required']);
+import { classifyResourceRequest, INSTRUCTOR_SUBJECT_IDS } from './resource-zones.mjs';
+
+export const RULE_IDS = Object.freeze(['device_registered', 'step_up_required', 'resource_zone']);
 
 const MAX_RECENT_EVENTS = 12;
 const HIGH_VOLUME_COUNT = 20;
@@ -38,13 +40,35 @@ function hasFreshEngineStepUp(request) {
     && stepUp.authAgeSeconds >= 0 && stepUp.authAgeSeconds <= 900;
 }
 
+function denyResourceResponse(request) {
+  return {
+    schema: 'aleph.decision.v1',
+    requestId: request.requestId,
+    decision: 'deny',
+    reasonCode: 'resource_not_authorized',
+    ruleIds: ['resource_zone'],
+  };
+}
+
+function allowResponse(request, stepUpVerified = false) {
+  return {
+    schema: 'aleph.decision.v1',
+    requestId: request.requestId,
+    decision: 'allow',
+    reasonCode: 'approved',
+    ruleIds: stepUpVerified
+      ? ['device_registered', 'resource_zone', 'step_up_required']
+      : ['device_registered', 'resource_zone'],
+  };
+}
+
 function stepUpResponse(request) {
   return {
     schema: 'aleph.decision.v1',
     requestId: request.requestId,
     decision: 'step_up',
     reasonCode: 'step_up_required',
-    ruleIds: ['step_up_required'],
+    ruleIds: ['device_registered', 'resource_zone', 'step_up_required'],
   };
 }
 
@@ -61,18 +85,18 @@ export async function decide(request) {
     };
   }
 
+  const resource = classifyResourceRequest(request);
+  if (!resource || (resource.operation === 'instructor_update'
+      && !INSTRUCTOR_SUBJECT_IDS.includes(request.subjectId))) {
+    return denyResourceResponse(request);
+  }
+
   // Missing, unknown, malformed, or non-fixture signals are never filled with normal values.
   // A re-authentication challenge is temporary; only the engine can verify its completion.
   const context = verifiedFixtureContext(request);
   if (!context) {
     if (hasFreshEngineStepUp(request)) {
-      return {
-        schema: 'aleph.decision.v1',
-        requestId: request.requestId,
-        decision: 'allow',
-        reasonCode: 'approved',
-        ruleIds: ['device_registered', 'step_up_required'],
-      };
+      return allowResponse(request, true);
     }
     return stepUpResponse(request);
   }
@@ -85,23 +109,11 @@ export async function decide(request) {
   const compositeAnomaly = unusualHour && newNetwork && highVolumeReads;
 
   if (!compositeAnomaly) {
-    return {
-      schema: 'aleph.decision.v1',
-      requestId: request.requestId,
-      decision: 'allow',
-      reasonCode: 'approved',
-      ruleIds: ['device_registered'],
-    };
+    return allowResponse(request);
   }
 
   if (hasFreshEngineStepUp(request)) {
-    return {
-      schema: 'aleph.decision.v1',
-      requestId: request.requestId,
-      decision: 'allow',
-      reasonCode: 'approved',
-      ruleIds: ['device_registered', 'step_up_required'],
-    };
+    return allowResponse(request, true);
   }
 
   return stepUpResponse(request);

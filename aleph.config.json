@@ -1,5 +1,5 @@
 {
-  "step": 7,
+  "step": 8,
   "repoUrl": "https://github.com/gilin03/choi-bujang-secret-vault",
   "publicAppUrl": "https://choi-bujang-secret-vault-umber.vercel.app",
   "sampleMarker": "SAMPLE_NOTE_1",
@@ -17,7 +17,10 @@
     "DELETE /api/notes/:id",
     "POST /api/auth-proxy/token",
     "GET /api/auth-proxy/user",
-    "POST /api/auth-proxy/logout"
+    "POST /api/auth-proxy/logout",
+    "GET /api/announcements",
+    "GET /api/announcements/:id",
+    "PUT /api/announcements/:id"
   ],
   "originalApiUrl": "https://jbmdrruojvgenkxzuird.supabase.co/rest/v1/vault_notes",
   "restoreRoute": null

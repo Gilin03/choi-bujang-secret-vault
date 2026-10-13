@@ -44,6 +44,7 @@ test('가짜 decide 가 result.json 형식과 건수를 만듭니다', async () 
     await cp(join(root, 'scripts', 'xdr-run.mjs'), join(dir, 'scripts', 'xdr-run.mjs'));
     await cp(join(root, 'scripts', 'fixture-7.mjs'), join(dir, 'scripts', 'fixture-7.mjs'));
     await cp(join(root, 'src', 'decider.mjs'), join(dir, 'src', 'decider.mjs'));
+    await cp(join(root, 'src', 'resource-zones.mjs'), join(dir, 'src', 'resource-zones.mjs'));
     await cp(join(root, 'src', 'decider-with-xdr.mjs'), join(dir, 'src', 'decider-with-xdr.mjs'));
     await cp(join(root, 'xdr', 'brute-force', 'deny-rules.mjs'), join(dir, 'xdr', 'brute-force', 'deny-rules.mjs'));
     const alerts = ['a-block', 'a-alert', 'a-record', 'a-bad', 'a-throw'].map((id) => ({
