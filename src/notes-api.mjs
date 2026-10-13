@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import config from '../aleph.config.json' with { type: 'json' };
+import { RESOURCE_IDS } from './resource-zones.mjs';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 let defaultVerifier;
@@ -7,7 +8,10 @@ let defaultVerifier;
 function json(payload, status) {
   return Response.json(payload, {
     status,
-    headers: { 'Cache-Control': 'no-store' },
+    headers: {
+      'Cache-Control': 'no-store',
+      'X-Aleph-Resource-Id': RESOURCE_IDS.personalNotes,
+    },
   });
 }
 
@@ -67,13 +71,19 @@ async function parseBody(request) {
 }
 
 function requestId(request) {
-  const segment = new URL(request.url).pathname.split('/').at(-1);
-  try { return decodeURIComponent(segment); } catch { return ''; }
+  const url = new URL(request.url);
+  const match = /^\/api\/notes\/([^/]+)$/u.exec(url.pathname);
+  if (!match || url.search) return null;
+  try { return decodeURIComponent(match[1]); } catch { return ''; }
 }
 
 export function createNotesHandler({ env = process.env, createClient, verifyLogin } = {}) {
   return {
     async fetch(request) {
+      const url = new URL(request.url);
+      if (url.pathname !== '/api/notes' || url.search) {
+        return json({ error: 'Resource not found' }, 404);
+      }
       if (!['GET', 'POST'].includes(request.method)) {
         return json({ error: 'Method not allowed' }, 405);
       }
@@ -122,6 +132,7 @@ export function createNoteItemHandler({ env = process.env, createClient, verifyL
       const auth = await authenticatedStudent(request, env, verifyLogin);
       if (auth.error) return auth.error;
       const id = requestId(request);
+      if (id === null) return json({ error: 'Resource not found' }, 404);
       if (!UUID.test(id)) return json({ error: 'Invalid note ID' }, 400);
 
       try {
@@ -148,7 +159,10 @@ export function createNoteItemHandler({ env = process.env, createClient, verifyL
           .eq('id', id).eq('owner_id', auth.userId).select('id').maybeSingle();
         if (error) return json({ error: 'Unable to delete note' }, 500);
         if (!data) return json({ error: 'Note not found' }, 404);
-        return new Response(null, { status: 204, headers: { 'Cache-Control': 'no-store' } });
+        return new Response(null, { status: 204, headers: {
+          'Cache-Control': 'no-store',
+          'X-Aleph-Resource-Id': RESOURCE_IDS.personalNotes,
+        } });
       } catch {
         return json({ error: 'Unable to update note' }, 500);
       }
