@@ -77,14 +77,16 @@ function requestId(request) {
   try { return decodeURIComponent(match[1]); } catch { return ''; }
 }
 
-export function createNotesHandler({ env = process.env, createClient, verifyLogin } = {}) {
+export function createNotesHandler({ env = process.env, createClient, verifyLogin,
+  path = '/api/notes', allowCreate = true } = {}) {
   return {
     async fetch(request) {
       const url = new URL(request.url);
-      if (url.pathname !== '/api/notes' || url.search) {
+      if (url.pathname !== path || url.search) {
         return json({ error: 'Resource not found' }, 404);
       }
-      if (!['GET', 'POST'].includes(request.method)) {
+      const allowedMethods = allowCreate ? ['GET', 'POST'] : ['GET'];
+      if (!allowedMethods.includes(request.method)) {
         return json({ error: 'Method not allowed' }, 405);
       }
       const auth = await authenticatedStudent(request, env, verifyLogin);
@@ -122,6 +124,10 @@ export function createNotesHandler({ env = process.env, createClient, verifyLogi
       }
     },
   };
+}
+
+export function createMyNotesHandler(options = {}) {
+  return createNotesHandler({ ...options, path: '/api/my/notes', allowCreate: false });
 }
 
 export function createNoteItemHandler({ env = process.env, createClient, verifyLogin } = {}) {

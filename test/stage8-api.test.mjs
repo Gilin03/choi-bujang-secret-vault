@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { createNoteItemHandler, createNotesHandler } from '../src/notes-api.mjs';
+import { createMyNotesHandler, createNoteItemHandler, createNotesHandler } from '../src/notes-api.mjs';
 import { createAnnouncementHandler, createAnnouncementItemHandler } from '../src/announcements-api.mjs';
 import { decide } from '../src/decider.mjs';
 import { RESOURCE_IDS } from '../src/resource-zones.mjs';
@@ -75,6 +75,7 @@ function makeHandlers({ ignoreOwnerFilters = false, includeOtherOwnerNote = fals
   return {
     database,
     notes: createNotesHandler(options),
+    myNotes: createMyNotesHandler(options),
     note: createNoteItemHandler(options),
     announcements: createAnnouncementHandler(options),
     announcement: createAnnouncementItemHandler(options),
@@ -152,14 +153,16 @@ test('personal note GET checks the stored owner before returning a row', async (
   assert.equal(database.tables.vault_notes[0].content, 'A body');
 });
 
-test('deployed /api note path reaches the same zone, while the API enforces stored ownership', async () => {
-  const { note, notes, database } = makeHandlers({
+test('decider scopes note paths and the API enforces stored ownership for the same item ID', async () => {
+  const { note, myNotes, database } = makeHandlers({
     ignoreOwnerFilters: true,
     includeOtherOwnerNote: true,
   });
 
   const ownerDecision = await decide(engineNoteRequest('opaque-engine-subject-a'));
   const otherSubjectDecision = await decide(engineNoteRequest('opaque-engine-subject-b'));
+  // subjectId is opaque and has no owner mapping in the contract, so this is
+  // a route gate only; the verified-user/API owner check decides item access.
   assert.equal(ownerDecision.decision, 'allow');
   assert.equal(otherSubjectDecision.decision, 'allow');
   assert.ok(ownerDecision.ruleIds.includes('resource_zone'));
@@ -170,7 +173,8 @@ test('deployed /api note path reaches the same zone, while the API enforces stor
   const otherUpdate = await note.fetch(request(`/api/notes/${noteA}`, 'PUT', 'fixture-b', {
     title: 'forged', body: 'forged', owner_id: userB,
   }));
-  const ownerList = await notes.fetch(request('/api/notes', 'GET', 'fixture-a'));
+  const ownerList = await myNotes.fetch(request('/api/my/notes', 'GET', 'fixture-a'));
+  const otherOwnerList = await myNotes.fetch(request('/api/my/notes', 'GET', 'fixture-b'));
 
   assert.equal(ownerRead.status, 200);
   assert.deepEqual(await ownerRead.json(), { id: noteA, title: 'A memo', body: 'A body' });
@@ -179,6 +183,8 @@ test('deployed /api note path reaches the same zone, while the API enforces stor
   assert.deepEqual((await ownerList.json()).notes, [
     { id: noteA, title: 'A memo', body: 'A body' },
   ]);
+  assert.equal(otherOwnerList.status, 200);
+  assert.equal((await otherOwnerList.json()).notes.some(row => row.id === noteA), false);
   assert.equal(database.tables.vault_notes.find(row => row.id === noteA).owner_id, userA);
   assert.equal(database.tables.vault_notes.find(row => row.id === noteA).content, 'A body');
 });
@@ -192,6 +198,24 @@ test('personal note list removes rows whose stored owner differs from the verifi
   assert.deepEqual((await response.json()).notes, [
     { id: noteA, title: 'A memo', body: 'A body' },
   ]);
+});
+
+test('explicit self-list API uses the verified user owner filter and does not accept writes', async () => {
+  const { myNotes, database } = makeHandlers({ ignoreOwnerFilters: true, includeOtherOwnerNote: true });
+
+  const response = await myNotes.fetch(request('/api/my/notes', 'GET', 'fixture-a'));
+  const forbiddenWrite = await myNotes.fetch(request('/api/my/notes', 'POST', 'fixture-a', {
+    title: 'Not allowed here', body: 'Self-list endpoint is read-only',
+  }));
+
+  assert.equal(response.status, 200);
+  assert.deepEqual((await response.json()).notes, [
+    { id: noteA, title: 'A memo', body: 'A body' },
+  ]);
+  assert.equal(forbiddenWrite.status, 405);
+  assert.ok(database.calls.some(call => call.table === 'vault_notes'
+    && call.filters.some(([field, value]) => field === 'owner_id' && value === userA)));
+  assert.equal(database.tables.vault_notes.length, 2);
 });
 
 test('announcement resource has a distinct id, is readable by students, and is writable only by stored instructors', async () => {

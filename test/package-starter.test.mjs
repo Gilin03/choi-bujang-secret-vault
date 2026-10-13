@@ -6,9 +6,13 @@ import { test } from 'node:test';
 const baseline = JSON.parse(await readFile(new URL('../package/baseline-functions.json', import.meta.url)));
 
 test('패키징 함수 기준표는 시작 틀의 실제 API와 일치한다', async () => {
-  const actual = (await readdir(new URL('../api/', import.meta.url)))
+  const apiRoot = new URL('../api/', import.meta.url);
+  const actual = (await readdir(apiRoot))
     .filter(name => /\.(?:m?js|ts)$/u.test(name))
     .map(name => join('api', name).replaceAll('\\', '/')).sort();
+  const nestedActual = (await readdir(new URL('my/', apiRoot)))
+    .filter(name => /\.(?:m?js|ts)$/u.test(name))
+    .map(name => join('api/my', name).replaceAll('\\', '/')).sort();
   assert.equal(baseline.version, 1);
   assert.equal(baseline.starter, 'ChoiTimo/aleph-defense-starter');
   assert.deepEqual(baseline.functions, []);
@@ -16,6 +20,7 @@ test('패키징 함수 기준표는 시작 틀의 실제 API와 일치한다', a
     'api/ai.js', 'api/announcements.mjs', 'api/notes.mjs', 'api/threat-intel.js',
   ]);
   assert.deepEqual(actual, [...baseline.functions, ...baseline.allowedNew].sort());
+  assert.deepEqual(nestedActual, baseline.nestedAllowedNew);
 });
 
 test('미구현 서버 뼈대는 성공이나 로그인 통과로 가장하지 않는다', async () => {
