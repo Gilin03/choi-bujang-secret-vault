@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import { readAlert, readAlerts } from '../xdr/brute-force/read-alerts.mjs';
 import { decide } from '../xdr/brute-force/decide.mjs';
 import { createDenyRules, matchActiveDenyRule } from '../xdr/brute-force/deny-rules.mjs';
+import { fixtureRequests } from '../scripts/fixture-7.mjs';
 import { decideWithXdr } from '../src/decider-with-xdr.mjs';
 
 const fixtureUrl = new URL('../xdr/fixtures/brute-force.json', import.meta.url);
@@ -216,7 +217,7 @@ test('XDR pre-decision gate denies a trusted blocked source and otherwise preser
   const fixture = await loadFixture();
   const decisions = await withoutJev(() => Promise.all(fixture.alerts.map((alert) => decide(alert))));
   const denyRules = createDenyRules({ alerts: fixture.alerts, decisions, now: new Date('2026-10-08T00:00:00.000Z') });
-  const request = { schema: 'aleph.decision.v1', requestId: 'fixture-request' };
+  const request = { ...fixtureRequests().normal, requestId: 'fixture-request' };
   const blocked = await decideWithXdr(request, {
     sourceAddress: fixture.alerts[0].data.srcip,
     denyRules,
@@ -226,12 +227,12 @@ test('XDR pre-decision gate denies a trusted blocked source and otherwise preser
   assert.equal(blocked.gate.evidenceAlertId, 'bf-01');
   assert.equal(blocked.policyDecision, null);
 
-  const continued = await decideWithXdr({ ...request, sourceAddress: fixture.alerts[0].data.srcip }, {
+  const continued = await decideWithXdr(request, {
     sourceAddress: fixture.alerts[19].data.srcip,
     denyRules,
     now: new Date('2026-10-08T00:01:00.000Z'),
   });
   assert.equal(continued.gate.action, 'continue');
-  assert.equal(continued.policyDecision.decision, 'deny');
-  assert.equal(continued.policyDecision.reasonCode, 'starter_not_ready');
+  assert.equal(continued.policyDecision.decision, 'allow');
+  assert.equal(continued.policyDecision.reasonCode, 'approved');
 });
