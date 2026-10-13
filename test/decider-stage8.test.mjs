@@ -157,27 +157,27 @@ test('announcement writes are denied because the decider contract has no instruc
   assert.ok(student.ruleIds.includes('resource_zone'));
 });
 
-test('allowedRoutes matches the read-only decider policy while preserving Auth proxy routes', async () => {
+test('allowedRoutes lists only decider-approved deployed resource API routes', async () => {
   const config = JSON.parse(await readFile(new URL('../aleph.config.json', import.meta.url), 'utf8'));
   const routes = config.allowedRoutes;
 
-  for (const route of [
+  assert.deepEqual(routes, [
     'GET /api/my/notes',
     'GET /api/notes/:id',
-    'GET /notes/:id',
     'GET /api/announcements',
     'GET /api/announcements/:id',
-    'POST /api/auth-proxy/token',
-    'GET /api/auth-proxy/user',
-    'POST /api/auth-proxy/logout',
-  ]) assert.ok(routes.includes(route), `missing allowed route: ${route}`);
+  ]);
 
   for (const route of [
     'GET /api/notes',
+    'GET /notes/:id',
     'POST /api/notes',
     'PUT /api/notes/:id',
     'DELETE /api/notes/:id',
     'PUT /api/announcements/:id',
+    'POST /api/auth-proxy/token',
+    'GET /api/auth-proxy/user',
+    'POST /api/auth-proxy/logout',
   ]) assert.ok(!routes.includes(route), `unexpected allowed route: ${route}`);
 });
 

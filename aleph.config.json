@@ -12,10 +12,6 @@
   "allowedRoutes": [
     "GET /api/my/notes",
     "GET /api/notes/:id",
-    "GET /notes/:id",
-    "POST /api/auth-proxy/token",
-    "GET /api/auth-proxy/user",
-    "POST /api/auth-proxy/logout",
     "GET /api/announcements",
     "GET /api/announcements/:id"
   ],
