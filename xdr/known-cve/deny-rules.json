@@ -1,0 +1,86 @@
+{
+  "schema": "aleph.xdr.deny-rules.v1",
+  "generatedAt": "2026-10-13T06:18:05.893Z",
+  "rules": [
+    {
+      "id": "xdr-known-cve-kc-01",
+      "action": "deny",
+      "sourceAddress": "203.0.113.10",
+      "createdAt": "2026-10-13T06:18:05.893Z",
+      "expiresAt": "2026-10-13T06:33:05.893Z",
+      "evidenceAlertId": "kc-01",
+      "confidence": 0.97,
+      "reason": "CVE-2021-44228 JNDI 원격 조회 구문: high-confidence CVE-2021-44228 request pattern"
+    },
+    {
+      "id": "xdr-known-cve-kc-02",
+      "action": "deny",
+      "sourceAddress": "203.0.113.10",
+      "createdAt": "2026-10-13T06:18:05.893Z",
+      "expiresAt": "2026-10-13T06:33:05.893Z",
+      "evidenceAlertId": "kc-02",
+      "confidence": 0.97,
+      "reason": "CVE-2021-44228 JNDI 원격 조회 구문: high-confidence CVE-2021-44228 request pattern"
+    },
+    {
+      "id": "xdr-known-cve-kc-03",
+      "action": "deny",
+      "sourceAddress": "198.51.100.16",
+      "createdAt": "2026-10-13T06:18:05.893Z",
+      "expiresAt": "2026-10-13T06:33:05.893Z",
+      "evidenceAlertId": "kc-03",
+      "confidence": 0.97,
+      "reason": "CVE-2021-44228 JNDI 원격 조회 구문: high-confidence CVE-2021-44228 request pattern"
+    },
+    {
+      "id": "xdr-known-cve-kc-04",
+      "action": "deny",
+      "sourceAddress": "192.0.2.16",
+      "createdAt": "2026-10-13T06:18:05.893Z",
+      "expiresAt": "2026-10-13T06:33:05.893Z",
+      "evidenceAlertId": "kc-04",
+      "confidence": 0.97,
+      "reason": "CVE-2021-44228 JNDI 원격 조회 구문: high-confidence CVE-2021-44228 request pattern"
+    },
+    {
+      "id": "xdr-known-cve-kc-05",
+      "action": "deny",
+      "sourceAddress": "203.0.113.24",
+      "createdAt": "2026-10-13T06:18:05.893Z",
+      "expiresAt": "2026-10-13T06:33:05.893Z",
+      "evidenceAlertId": "kc-05",
+      "confidence": 0.97,
+      "reason": "CVE-2021-44228 JNDI 원격 조회 구문: high-confidence CVE-2021-44228 request pattern"
+    },
+    {
+      "id": "xdr-known-cve-kc-06",
+      "action": "deny",
+      "sourceAddress": "198.51.100.24",
+      "createdAt": "2026-10-13T06:18:05.893Z",
+      "expiresAt": "2026-10-13T06:33:05.893Z",
+      "evidenceAlertId": "kc-06",
+      "confidence": 0.97,
+      "reason": "CVE-2021-44228 JNDI 원격 조회 구문: high-confidence CVE-2021-44228 request pattern"
+    },
+    {
+      "id": "xdr-known-cve-kc-07",
+      "action": "deny",
+      "sourceAddress": "192.0.2.24",
+      "createdAt": "2026-10-13T06:18:05.893Z",
+      "expiresAt": "2026-10-13T06:33:05.893Z",
+      "evidenceAlertId": "kc-07",
+      "confidence": 0.97,
+      "reason": "CVE-2021-44228 JNDI 원격 조회 구문: high-confidence CVE-2021-44228 request pattern"
+    },
+    {
+      "id": "xdr-known-cve-kc-08",
+      "action": "deny",
+      "sourceAddress": "203.0.113.31",
+      "createdAt": "2026-10-13T06:18:05.893Z",
+      "expiresAt": "2026-10-13T06:33:05.893Z",
+      "evidenceAlertId": "kc-08",
+      "confidence": 0.97,
+      "reason": "CVE-2021-44228 JNDI 원격 조회 구문: high-confidence CVE-2021-44228 request pattern"
+    }
+  ]
+}

@@ -120,5 +120,7 @@ git ls-tree -r --name-only origin/main | Select-String '(^|/)data\.json$'
 - 웹 주입 연습의 `xdr/fixtures/web-injection.json`에는 26개 가상 Wazuh 형식 경보가 있습니다. `xdr/web-injection/read-alerts.mjs`는 확인용으로 다섯 허용 필드만 추출·비밀값 마스킹하며, 단독 실행용 `decide.mjs`는 이 읽기 모듈을 불러오지 않습니다.
 - `xdr/web-injection/patterns.json`에는 MITRE ATT&CK T1190 근거와 함께 요청 인자의 SQL 구문, 스크립트 태그, 반복 `../` 경로 이탈 세 신호와 세부 패턴이 불확실할 때 쓰는 검토 전용 fallback을 기록합니다. 강한 패턴·반복 횟수·심각도·유효 출발 주소가 함께 확인될 때만 block, T1190 검토 경보는 alert, 정상 이벤트는 record입니다.
 - `npm run xdr:run -- web-injection`은 `xdr/web-injection/result.json`과 15분 뒤 만료되는 `deny-rules.json`을 만들고 fixture 출발 주소를 기존 `src/decider-with-xdr.mjs` 사전 차단 게이트에 넣어 결과를 출력합니다. `respond.mjs`는 block 후보 규칙과 block·alert 로그만 `xdr/alerts.log`에 추가하며, 같은 경보를 재실행해도 중복 기록하지 않습니다.
+- `xdr/known-cve/`는 CVE-2021-44228 모양의 JNDI 요청을 고위험·유효 주소와 함께 확인할 때만 block하고, 약한 CVE/T1190·점검 도구 흔적은 alert, 정상 이벤트는 record로 분류합니다. 확인용 reader는 허용된 다섯 필드만 마스킹해 내보내며 단독 `decide.mjs`는 외부 모듈을 불러오지 않습니다.
+- `npm run xdr:run -- known-cve`는 24건 결과, 15분 만료·근거 경보 ID가 있는 차단 후보, 중복 방지 알림 로그를 만들고 기존 XDR 사전 차단 게이트를 fixture 출발 주소로 확인합니다. 이는 학습용 fixture 검증이며 실제 Wazuh 수집이나 운영 차단은 아닙니다.
 - 이 게이트는 fixture 실행기의 연결입니다. 운영 요청 계약에는 출발 IP가 없으므로 실제 서비스 트래픽의 Wazuh 수집이나 운영 ZTNA 차단이 연결된 것은 아닙니다.
 먼저 [AGENTS.md](AGENTS.md)를 읽고 한 번에 한 단계만 요청하세요. `src/decider.mjs`와 `src/detect.mjs`의 로컬 시험은 가상 요청·사건 연습이며 반 엔진이나 운영 심판의 결과가 아닙니다. `aleph.defense.submission.v2` 제출 묶음 계약은 `scripts/bundle.mjs`가 관리합니다.

@@ -1,0 +1,32 @@
+{
+  "schema": "aleph.xdr.patterns.v1",
+  "patterns": [
+    {
+      "id": "log4shell_jndi_lookup",
+      "name": "CVE-2021-44228 JNDI 원격 조회 구문",
+      "condition": "요청 머리글·URL·인자에 완성된 ${jndi:...://...} 원격 조회 형태가 있습니다. CVE 이름이나 jndi 단어만 있는 경우는 일치시키지 않습니다.",
+      "evidence": "NVD는 CVE-2021-44228에서 공격자가 제어하는 LDAP 등 JNDI 관련 endpoint를 Log4j2가 보호하지 못하는 점을 기록합니다. MITRE ATT&CK T1190은 공개 애플리케이션 취약점 악용을 다룹니다.",
+      "source": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2021-44228",
+        "https://attack.mitre.org/techniques/T1190/"
+      ]
+    },
+    {
+      "id": "known_log4shell_scanner_trace",
+      "name": "알려진 Log4Shell 점검 도구 흔적",
+      "condition": "요청 머리글·URL·인자에 log4j-scan, log4shell scanner 또는 CVE/Log4j 맥락의 Nuclei 같은 명시적 도구 표식이 있습니다. 도구 흔적만으로 차단하지 않고 alert로 남깁니다.",
+      "evidence": "MITRE ATT&CK T1190은 공개 애플리케이션 취약점 악용을 초기 접근 기법으로 설명합니다. 점검 도구 표식은 조사 신호이며 단독 차단 근거로 취급하지 않습니다.",
+      "source": [
+        "https://github.com/projectdiscovery/nuclei-templates/blob/main/http/cves/2021/CVE-2021-44228.yaml",
+        "https://attack.mitre.org/techniques/T1190/"
+      ]
+    },
+    {
+      "id": "cve_t1190_review",
+      "name": "CVE-2021-44228·T1190 검토 신호",
+      "condition": "T1190 태그 또는 요청의 CVE-2021-44228/Log4Shell 언급은 있으나 완성된 JNDI 구문이나 명시적 점검 도구 표식은 없습니다. 기록을 검토 알림으로 남기고 차단하지 않습니다.",
+      "evidence": "MITRE ATT&CK T1190은 인터넷에 노출된 애플리케이션의 취약점 악용을 설명하며, 태그·취약점 이름만 있는 약한 신호는 추가 검토 대상으로만 둡니다.",
+      "source": "https://attack.mitre.org/techniques/T1190/"
+    }
+  ]
+}

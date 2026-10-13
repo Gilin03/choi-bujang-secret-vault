@@ -44,3 +44,9 @@ node scripts/xdr-run.mjs brute-force
 웹 주입 연습은 `npm run xdr:run -- web-injection`으로 실행합니다. 확인용 `web-injection/read-alerts.mjs`는 경보마다 시각·출발 주소·계정·규칙 수준·설명만 추출하고 비밀값처럼 보이는 문자열을 마스킹합니다. `web-injection/decide.mjs`는 이 모듈을 import하지 않으며, 패턴 상수만 사용해 단독으로 판단합니다. `patterns.json`은 SQL 구문, 스크립트 태그, 반복 `../` 경로 이탈 세 신호와 구체 패턴을 식별하지 못한 T1190 경보의 검토 fallback을 기록합니다. 뚜렷한 패턴이 반복되고 심각도와 출발 주소까지 확인될 때만 block하며, 그 외 T1190 경보는 alert, 나머지는 record로 둡니다.
 
 실행하면 `web-injection/result.json`과 15분 만료·근거 경보 ID가 있는 `web-injection/deny-rules.json`이 생성됩니다. 응답 모듈은 block·alert 메타데이터와 고정된 안전 사유만 `xdr/alerts.log`에 한 줄씩 추가하며 재실행 시 중복을 피합니다. 계정·요청 URL·원본 설명은 기록하지 않습니다. 실행기는 거부 규칙을 `src/decider-with-xdr.mjs` 사전 차단 게이트에 전달하고, 차단되지 않은 요청은 기존 판정기로 넘깁니다. 현재 출발 IP가 운영 요청 계약에 없으므로 이는 fixture 연습 연결이며 실제 Wazuh 운영 로그 수집이나 운영 트래픽 차단이 아닙니다.
+
+## Log4Shell known-cve 연습
+
+`npm run xdr:run -- known-cve`는 24개 가상 Wazuh 형식 경보를 판단합니다. 확인용 `known-cve/read-alerts.mjs`는 시각·출발 주소·계정·규칙 수준·설명만 추출하고 비밀값처럼 보이는 문자열을 가립니다. 단독 실행형 `known-cve/decide.mjs`는 이 reader나 다른 모듈을 import하지 않습니다. 완성된 JNDI 원격 조회 구문이 고위험 규칙과 유효 출발 주소를 함께 만족할 때만 block하고, 명시적 점검 도구 흔적이나 약한 CVE/T1190 신호는 alert, 정상 이벤트는 record로 둡니다. 패턴 근거는 `known-cve/patterns.json`에 기록했습니다.
+
+실행하면 `known-cve/result.json`, 15분 만료와 근거 경보 ID가 포함된 차단 후보 `known-cve/deny-rules.json`, 중복 방지 `xdr/alerts.log`가 생성됩니다. 로그에는 경보 ID·행동·확신도·고정 사유만 남기며 요청 URL·머리글·계정은 기록하지 않습니다. 실행기는 fixture 출발 주소로 기존 `src/decider-with-xdr.mjs` 사전 차단 게이트를 확인하고 block·alert·record 및 gate 결과를 출력합니다. 이것은 학습용 fixture 검증이며 실제 Wazuh 수집이나 운영 트래픽 차단을 의미하지 않습니다.

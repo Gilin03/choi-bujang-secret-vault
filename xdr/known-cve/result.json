@@ -1,0 +1,155 @@
+{
+  "schema": "aleph.xdr.result.v1",
+  "moduleKey": "known-cve",
+  "decisions": [
+    {
+      "alertId": "kc-01",
+      "action": "block",
+      "confidence": 0.97,
+      "reason": "CVE-2021-44228 JNDI 원격 조회 구문: 완성된 JNDI 원격 조회와 고위험 규칙·출발 주소 확인"
+    },
+    {
+      "alertId": "kc-02",
+      "action": "block",
+      "confidence": 0.97,
+      "reason": "CVE-2021-44228 JNDI 원격 조회 구문: 완성된 JNDI 원격 조회와 고위험 규칙·출발 주소 확인"
+    },
+    {
+      "alertId": "kc-03",
+      "action": "block",
+      "confidence": 0.97,
+      "reason": "CVE-2021-44228 JNDI 원격 조회 구문: 완성된 JNDI 원격 조회와 고위험 규칙·출발 주소 확인"
+    },
+    {
+      "alertId": "kc-04",
+      "action": "block",
+      "confidence": 0.97,
+      "reason": "CVE-2021-44228 JNDI 원격 조회 구문: 완성된 JNDI 원격 조회와 고위험 규칙·출발 주소 확인"
+    },
+    {
+      "alertId": "kc-05",
+      "action": "block",
+      "confidence": 0.97,
+      "reason": "CVE-2021-44228 JNDI 원격 조회 구문: 완성된 JNDI 원격 조회와 고위험 규칙·출발 주소 확인"
+    },
+    {
+      "alertId": "kc-06",
+      "action": "block",
+      "confidence": 0.97,
+      "reason": "CVE-2021-44228 JNDI 원격 조회 구문: 완성된 JNDI 원격 조회와 고위험 규칙·출발 주소 확인"
+    },
+    {
+      "alertId": "kc-07",
+      "action": "block",
+      "confidence": 0.97,
+      "reason": "CVE-2021-44228 JNDI 원격 조회 구문: 완성된 JNDI 원격 조회와 고위험 규칙·출발 주소 확인"
+    },
+    {
+      "alertId": "kc-08",
+      "action": "block",
+      "confidence": 0.97,
+      "reason": "CVE-2021-44228 JNDI 원격 조회 구문: 완성된 JNDI 원격 조회와 고위험 규칙·출발 주소 확인"
+    },
+    {
+      "alertId": "kc-09",
+      "action": "alert",
+      "confidence": 0.55,
+      "reason": "CVE-2021-44228·T1190 검토 신호: 완전한 고위험 차단 근거가 부족해 검토"
+    },
+    {
+      "alertId": "kc-10",
+      "action": "alert",
+      "confidence": 0.55,
+      "reason": "CVE-2021-44228·T1190 검토 신호: 완전한 고위험 차단 근거가 부족해 검토"
+    },
+    {
+      "alertId": "kc-11",
+      "action": "alert",
+      "confidence": 0.55,
+      "reason": "CVE-2021-44228·T1190 검토 신호: 완전한 고위험 차단 근거가 부족해 검토"
+    },
+    {
+      "alertId": "kc-12",
+      "action": "alert",
+      "confidence": 0.55,
+      "reason": "CVE-2021-44228·T1190 검토 신호: 완전한 고위험 차단 근거가 부족해 검토"
+    },
+    {
+      "alertId": "kc-13",
+      "action": "alert",
+      "confidence": 0.55,
+      "reason": "CVE-2021-44228·T1190 검토 신호: 완전한 고위험 차단 근거가 부족해 검토"
+    },
+    {
+      "alertId": "kc-14",
+      "action": "alert",
+      "confidence": 0.55,
+      "reason": "CVE-2021-44228·T1190 검토 신호: 완전한 고위험 차단 근거가 부족해 검토"
+    },
+    {
+      "alertId": "kc-15",
+      "action": "alert",
+      "confidence": 0.55,
+      "reason": "CVE-2021-44228·T1190 검토 신호: 완전한 고위험 차단 근거가 부족해 검토"
+    },
+    {
+      "alertId": "kc-16",
+      "action": "alert",
+      "confidence": 0.55,
+      "reason": "CVE-2021-44228·T1190 검토 신호: 완전한 고위험 차단 근거가 부족해 검토"
+    },
+    {
+      "alertId": "kc-17",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "CVE-2021-44228 JNDI·점검 도구 신호 없음"
+    },
+    {
+      "alertId": "kc-18",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "CVE-2021-44228 JNDI·점검 도구 신호 없음"
+    },
+    {
+      "alertId": "kc-19",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "CVE-2021-44228 JNDI·점검 도구 신호 없음"
+    },
+    {
+      "alertId": "kc-20",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "CVE-2021-44228 JNDI·점검 도구 신호 없음"
+    },
+    {
+      "alertId": "kc-21",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "CVE-2021-44228 JNDI·점검 도구 신호 없음"
+    },
+    {
+      "alertId": "kc-22",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "CVE-2021-44228 JNDI·점검 도구 신호 없음"
+    },
+    {
+      "alertId": "kc-23",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "CVE-2021-44228 JNDI·점검 도구 신호 없음"
+    },
+    {
+      "alertId": "kc-24",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "CVE-2021-44228 JNDI·점검 도구 신호 없음"
+    }
+  ],
+  "counts": {
+    "block": 8,
+    "alert": 8,
+    "record": 8
+  }
+}
