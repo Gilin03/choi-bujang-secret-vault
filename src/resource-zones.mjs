@@ -3,9 +3,25 @@ export const RESOURCE_IDS = Object.freeze({
   instructorAnnouncements: 'instructor_announcements',
 });
 
-const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
-const NOTE_ITEM = new RegExp(`^/notes/${UUID}$`, 'iu');
-const ANNOUNCEMENT_ITEM = new RegExp(`^/announcements/${UUID}$`, 'iu');
+const NOTE_ID = '[A-Za-z0-9_-]{1,64}';
+const NOTE_ITEM = new RegExp(`^/notes/${NOTE_ID}$`, 'u');
+const NOTE_FUNCTION_SEGMENTS = new Set([
+  'export', 'exports', 'download', 'all', 'list', 'search', 'bulk', 'batch', 'share', 'shared',
+  'public', 'admin', 'backup', 'dump', 'import', 'sync', 'raw', 'query', 'count', 'report',
+  'stats', 'owner', 'owners', 'user', 'users', 'others', 'any', 'notices', 'notes',
+]);
+
+const ZONES = Object.freeze({
+  'GET /my/notes': { path: /^\/my\/notes$/u, operation: 'read' },
+  'POST /notes': { path: /^\/notes$/u, operation: 'post' },
+  'GET /notes/:id': { path: NOTE_ITEM, operation: 'get' },
+  'PUT /notes/:id': { path: NOTE_ITEM, operation: 'put' },
+  'DELETE /notes/:id': { path: NOTE_ITEM, operation: 'delete' },
+});
+
+function stripApi(value) {
+  return value.replace(/^\/api(?=\/)/u, '');
+}
 
 function verifiedPathContext(request) {
   return request && typeof request === 'object'
@@ -20,51 +36,21 @@ function verifiedPathContext(request) {
     && typeof request.route === 'string';
 }
 
-function normalizeApiPrefix(request, resource) {
-  const apiPrefix = `/api/${resource}`;
-  const routePrefix = `${request.method} ${apiPrefix}`;
-  const hasApiPath = request.path === apiPrefix || request.path.startsWith(`${apiPrefix}/`);
-  const hasApiRoute = request.route === routePrefix || request.route.startsWith(`${routePrefix}/`);
-
-  if (request.service !== resource || !hasApiPath || !hasApiRoute) return request;
-
-  return {
-    ...request,
-    path: request.path.slice('/api'.length),
-    route: request.route.replace(routePrefix, `${request.method} /${resource}`),
-  };
-}
-
 export function classifyResourceRequest(request) {
   if (!verifiedPathContext(request)) return null;
-  const normalized = normalizeApiPrefix(normalizeApiPrefix(request, 'notes'), 'announcements');
-  const { service, method, path, route } = normalized;
+  const { service, method, path, route } = request;
+  if (service !== 'notes') return null;
 
-  if (service === 'notes') {
-    if (path === '/api/my/notes' && method === 'GET' && route === 'GET /api/my/notes') {
-      return { resourceId: RESOURCE_IDS.personalNotes, operation: 'read' };
-    }
-    if (path === '/notes' && route === `${method} /notes` && method === 'POST') {
-      return { resourceId: RESOURCE_IDS.personalNotes, operation: method.toLowerCase() };
-    }
-    if (NOTE_ITEM.test(path) && route === `${method} /notes/:id`
-        && ['GET', 'PUT', 'DELETE'].includes(method)) {
-      return { resourceId: RESOURCE_IDS.personalNotes, operation: method.toLowerCase() };
-    }
-    return null;
-  }
+  const separator = route.indexOf(' ');
+  if (separator < 0 || route.slice(0, separator) !== method) return null;
 
-  if (service === 'announcements') {
-    if (path === '/announcements' && method === 'GET' && route === 'GET /announcements') {
-      return { resourceId: RESOURCE_IDS.instructorAnnouncements, operation: 'read' };
-    }
-    if (ANNOUNCEMENT_ITEM.test(path) && method === 'GET' && route === 'GET /announcements/:id') {
-      return { resourceId: RESOURCE_IDS.instructorAnnouncements, operation: 'read' };
-    }
-    if (ANNOUNCEMENT_ITEM.test(path) && method === 'PUT' && route === 'PUT /announcements/:id') {
-      return { resourceId: RESOURCE_IDS.instructorAnnouncements, operation: 'instructor_update' };
-    }
-  }
+  const canonicalPath = stripApi(path);
+  const canonicalRoute = stripApi(route.slice(separator + 1));
+  const rule = ZONES[`${method} ${canonicalRoute}`];
+  if (!rule || !rule.path.test(canonicalPath)) return null;
 
-  return null;
+  const noteId = canonicalPath.startsWith('/notes/') ? canonicalPath.slice('/notes/'.length) : null;
+  if (noteId !== null && NOTE_FUNCTION_SEGMENTS.has(noteId.toLowerCase())) return null;
+
+  return { resourceId: RESOURCE_IDS.personalNotes, operation: rule.operation };
 }

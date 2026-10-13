@@ -45,7 +45,7 @@ function denyResourceResponse(request) {
     schema: 'aleph.decision.v1',
     requestId: request.requestId,
     decision: 'deny',
-    reasonCode: 'resource_not_authorized',
+    reasonCode: 'route_not_allowed',
     ruleIds: ['resource_zone'],
   };
 }
@@ -114,13 +114,6 @@ export async function decide(request) {
       if (!hasFreshEngineStepUp(request)) return stepUpResponse(request);
       stepUpVerified = true;
     }
-  }
-
-  // The engine contract carries no resource-owner or instructor proof.
-  // Keep API CRUD available behind its verified-user checks, but never allow
-  // an unproven mutation through the decider.
-  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method)) {
-    return denyResourceResponse(request);
   }
 
   return allowResponse(request, stepUpVerified);

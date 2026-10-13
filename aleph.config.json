@@ -11,9 +11,13 @@
   },
   "allowedRoutes": [
     "GET /api/my/notes",
+    "POST /api/notes",
     "GET /api/notes/:id",
+    "PUT /api/notes/:id",
+    "DELETE /api/notes/:id",
     "GET /api/announcements",
-    "GET /api/announcements/:id"
+    "GET /api/announcements/:id",
+    "PUT /api/announcements/:id"
   ],
   "originalApiUrl": "https://jbmdrruojvgenkxzuird.supabase.co/rest/v1/vault_notes",
   "restoreRoute": null
