@@ -11,6 +11,7 @@
     "decider:test": "node scripts/decider-test.mjs",
     "test:stage8": "node --test test/decider-stage8.test.mjs test/stage8-api.test.mjs",
     "detect:test": "node scripts/detect-test.mjs",
+    "test:stage11": "node --test test/device-approval.test.mjs test/stage11-ui.test.mjs",
     "policy:compare": "node scripts/policy-diff.mjs",
     "policy:apply": "node scripts/policy-restore.mjs",
     "fixture:7": "node scripts/fixture-7.mjs",

@@ -66,6 +66,10 @@ test('stage 4 attack checks verify anonymous API access is denied and static JSO
       if (requestUrl.pathname === '/api/notes') {
         return Response.json({ error: 'Authentication required' }, { status: 401 });
       }
+      if (requestUrl.pathname === '/api/device/status'
+          || requestUrl.pathname === '/api/device/challenge') {
+        return Response.json({ error: 'Authentication required' }, { status: 401 });
+      }
       return new Response('', { status: 404 });
     };
     const results = await runAttackChecks({ ...config, step: 4 });
@@ -93,14 +97,30 @@ test('stage 4 attack checks verify anonymous API access is denied and static JSO
         redirect: 'error',
         authorization: undefined,
       },
+      {
+        url: 'https://student-defense.vercel.app/api/device/status',
+        method: 'GET',
+        redirect: 'error',
+        authorization: undefined,
+      },
+      {
+        url: 'https://student-defense.vercel.app/api/device/challenge',
+        method: 'POST',
+        redirect: 'error',
+        authorization: undefined,
+      },
     ]);
-    assert.equal(results.length, 3);
+    assert.equal(results.length, 5);
     assert.equal(results[0].expected, '비로그인 GET /api/notes는 401로 거부됨');
     assert.equal(results[1].expected, '정적 /data.json에서 메모 본문을 찾을 수 없음');
     assert.equal(results[2].expected, '비로그인 POST /api/notes는 401로 거부됨');
+    assert.equal(results[3].expected, '비로그인 GET /api/device/status는 401로 거부됨');
+    assert.equal(results[4].expected, '비로그인 POST /api/device/challenge는 401로 거부됨');
     assert.match(results[0].observed, /HTTP 401.*인증 거부/u);
     assert.match(results[1].observed, /HTTP 404/u);
     assert.match(results[2].observed, /HTTP 401/u);
+    assert.match(results[3].observed, /HTTP 401/u);
+    assert.match(results[4].observed, /HTTP 401/u);
     assert.doesNotMatch(JSON.stringify(results), /fixture-only-title/u);
 
     globalThis.fetch = async () => new Response('<html>not the data</html>', { status: 200 });

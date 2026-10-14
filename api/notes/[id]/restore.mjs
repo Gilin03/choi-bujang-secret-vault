@@ -1,3 +1,4 @@
 import { createNoteRestoreHandler } from '../../../src/notes-api.mjs';
+import { createDeviceProtectedHandler } from '../../../src/device-approval.mjs';
 
-export default createNoteRestoreHandler();
+export default createDeviceProtectedHandler(createNoteRestoreHandler());

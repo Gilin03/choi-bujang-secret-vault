@@ -4,7 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#101a28">
-  <title>BYTE BACK | 점령된 자료실</title>
+  <meta name="description" content="승인된 Passkey로 여는 BYTE BACK 개인 자료실. 오프라인에서는 보호 자료를 열 수 없습니다.">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/vault-icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/vault-icon-192.png">
+  <title>BYTE BACK | 나만의 자료실</title>
   <style>
     :root { color-scheme: dark; font-family: Inter, Pretendard, system-ui, sans-serif; background: #101a28; color: #ecf4ff; }
     * { box-sizing: border-box; }
@@ -16,6 +20,9 @@
     p { color: #bfd0e5; line-height: 1.65; }
     .intro { margin: 0 0 25px; }
     .notice { margin: 22px 0; padding: 15px 17px; border: 1px solid #c69553; border-radius: 13px; color: #ffe8bf; background: #82562133; line-height: 1.6; }
+    .app-state { display: flex; flex-wrap: wrap; align-items: baseline; gap: 5px 12px; margin: 0; }
+    .app-state strong { color: #a5e4e8; }
+    .fine-print { margin-bottom: 0; font-size: 14px; }
     .panel { margin-top: 19px; padding: 21px; border: 1px solid #40566d; border-radius: 17px; background: #152437e8; box-shadow: 0 18px 55px #07111d55; }
     form { display: grid; gap: 13px; }
     label { display: grid; gap: 7px; color: #bfd0e5; font-size: 14px; font-weight: 700; }
@@ -41,10 +48,17 @@
 </head>
 <body>
   <main>
-    <div class="eyebrow">BYTE BACK · 3단계 인증 자료실</div>
-    <h1>점령된 자료실</h1>
-    <p class="intro">로그인한 뒤 서버에서 가상 자료를 읽고 내 메모를 관리합니다. 실제 개인정보나 운영 자료는 입력하지 마세요.</p>
-    <div class="notice">로그인은 신원 확인입니다. 지금은 메모 ID를 알면 다른 계정의 메모를 읽거나 바꿀 수 있습니다. 소유자 확인은 4단계에서 추가합니다.</div>
+    <div class="eyebrow">BYTE BACK · 개인 자료실</div>
+    <h1>나만의 자료실</h1>
+    <p class="intro">서버가 승인한 Passkey로 확인한 뒤 기존 자료실을 엽니다. 실제 개인정보나 운영 자료는 입력하지 마세요.</p>
+
+    <section class="panel" aria-labelledby="app-state-heading">
+      <h2 id="app-state-heading">앱 설치 상태</h2>
+      <p class="app-state"><strong id="install-status" aria-live="polite">브라우저에서 실행 중</strong><span>설치 표시만으로 기기 승인이 된 것은 아닙니다.</span></p>
+      <p class="fine-print">오프라인에서는 보호 자료를 표시하지 않습니다. 연결을 복구한 뒤 로그인과 기기 확인을 다시 진행하세요.</p>
+    </section>
+
+    <div class="notice">새 Passkey는 승인 요청으로만 등록됩니다. 운영자가 서버에서 승인하기 전에는 자료를 읽거나 바꿀 수 없습니다.</div>
 
     <section id="login-panel" class="panel" aria-labelledby="login-heading">
       <h2 id="login-heading">로그인</h2>
@@ -66,6 +80,17 @@
         <button id="logout-button" class="secondary" type="button">로그아웃</button>
       </div>
       <p id="app-error" class="error" role="alert" aria-live="polite"></p>
+    </section>
+
+    <section id="device-panel" class="panel" aria-labelledby="device-heading" hidden>
+      <h2 id="device-heading">기기 승인</h2>
+      <p id="device-status" role="status" aria-live="polite">서버 승인 상태를 확인합니다.</p>
+      <p class="fine-print">Passkey 개인키는 기기의 플랫폼 인증기에 남고 브라우저 저장소로 복사되지 않습니다. 승인 요청 후에는 서버 승인이 끝날 때까지 자료를 열 수 없습니다.</p>
+      <div class="actions">
+        <button id="device-request" type="button" hidden>기기 승인 요청</button>
+        <button id="device-retry" class="secondary" type="button" hidden>승인 상태 다시 확인</button>
+      </div>
+      <p id="device-error" class="error" role="alert" aria-live="polite"></p>
     </section>
 
     <section id="workspace" hidden>
@@ -104,6 +129,7 @@
 
     const supabaseUrl = 'https://jbmdrruojvgenkxzuird.supabase.co';
     const supabase = createClient(supabaseUrl, 'auth-proxy-managed', {
+      auth: { persistSession: false, detectSessionInUrl: false },
       global: { fetch: createAuthProxyFetch({ supabaseUrl }) },
     });
     const loginPanel = document.querySelector('#login-panel');
@@ -114,6 +140,12 @@
     const loginError = document.querySelector('#login-error');
     const accountLabel = document.querySelector('#account-label');
     const appError = document.querySelector('#app-error');
+    const devicePanel = document.querySelector('#device-panel');
+    const deviceStatus = document.querySelector('#device-status');
+    const deviceError = document.querySelector('#device-error');
+    const deviceRequest = document.querySelector('#device-request');
+    const deviceRetry = document.querySelector('#device-retry');
+    const installStatus = document.querySelector('#install-status');
     const sampleList = document.querySelector('#samples');
     const noteList = document.querySelector('#my-notes');
     const noteForm = document.querySelector('#note-form');
@@ -124,6 +156,96 @@
     const cancelEdit = document.querySelector('#cancel-edit');
     let currentSession = null;
     let editingId = null;
+
+    function updateInstallStatus() {
+      const installed = window.matchMedia('(display-mode: standalone)').matches
+        || navigator.standalone === true;
+      installStatus.textContent = installed ? '설치된 웹앱에서 실행 중' : '브라우저에서 실행 중';
+    }
+
+    function base64urlBytes(value) {
+      const base64 = value.replaceAll('-', '+').replaceAll('_', '/');
+      return Uint8Array.from(atob(base64 + '='.repeat((4 - (base64.length % 4)) % 4)),
+        character => character.charCodeAt(0));
+    }
+
+    function base64urlBuffer(value) {
+      if (!value) return null;
+      const bytes = new Uint8Array(value);
+      let binary = '';
+      for (let index = 0; index < bytes.length; index += 1) binary += String.fromCharCode(bytes[index]);
+      return btoa(binary).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/u, '');
+    }
+
+    function credentialOptions(options) {
+      return {
+        ...options,
+        challenge: base64urlBytes(options.challenge),
+        ...(options.user ? { user: { ...options.user, id: base64urlBytes(options.user.id) } } : {}),
+        ...(options.allowCredentials ? {
+          allowCredentials: options.allowCredentials.map(credential => ({
+            ...credential, id: base64urlBytes(credential.id),
+          })),
+        } : {}),
+        ...(options.excludeCredentials ? {
+          excludeCredentials: options.excludeCredentials.map(credential => ({
+            ...credential, id: base64urlBytes(credential.id),
+          })),
+        } : {}),
+      };
+    }
+
+    function serializeCredential(credential) {
+      const response = credential.response;
+      const serialized = {
+        id: credential.id,
+        rawId: base64urlBuffer(credential.rawId),
+        type: credential.type,
+        response: {
+          clientDataJSON: base64urlBuffer(response.clientDataJSON),
+        },
+      };
+      if (response.attestationObject) {
+        serialized.response.attestationObject = base64urlBuffer(response.attestationObject);
+      }
+      if (response.authenticatorData) {
+        serialized.response.authenticatorData = base64urlBuffer(response.authenticatorData);
+        serialized.response.signature = base64urlBuffer(response.signature);
+        serialized.response.userHandle = base64urlBuffer(response.userHandle);
+      }
+      return serialized;
+    }
+
+    async function authenticatedFetch(path, options = {}) {
+      const sessionResult = await supabase.auth.getSession();
+      const token = sessionResult.data.session?.access_token;
+      if (!token) throw new Error('로그인 세션이 없습니다. 다시 로그인해 주세요.');
+      const method = (options.method || 'GET').toUpperCase();
+      const challengeResponse = await fetch('/api/device/challenge', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ method, path: new URL(path, location.href).pathname }),
+        cache: 'no-store',
+      });
+      const challenge = await challengeResponse.json().catch(() => ({}));
+      if (!challengeResponse.ok || !challenge.publicKey) {
+        throw new Error(challenge.error || '승인된 기기에서만 자료를 열 수 있습니다.');
+      }
+      const assertion = await navigator.credentials.get({ publicKey: credentialOptions(challenge.publicKey) });
+      if (!assertion) throw new Error('기기 확인이 취소되었습니다.');
+      const headers = new Headers(options.headers || {});
+      headers.set('Authorization', `Bearer ${token}`);
+      headers.set('X-Aleph-Device-Assertion', JSON.stringify(serializeCredential(assertion)));
+      if (options.body) headers.set('Content-Type', 'application/json');
+      const response = await fetch(path, { ...options, method, headers, cache: 'no-store' });
+      if (response.status === 204) return null;
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403) clearProtectedContent();
+        throw new Error(data.error || `요청 실패 (HTTP ${response.status})`);
+      }
+      return data;
+    }
 
     function showMessage(target, message = '') {
       target.textContent = message;
@@ -165,18 +287,13 @@
       }));
     }
 
-    async function api(path, options = {}) {
-      const sessionResult = await supabase.auth.getSession();
-      const token = sessionResult.data.session?.access_token;
-      if (!token) throw new Error('로그인 세션이 없습니다. 다시 로그인해 주세요.');
-      const headers = new Headers(options.headers || {});
-      headers.set('Authorization', `Bearer ${token}`);
-      if (options.body) headers.set('Content-Type', 'application/json');
-      const response = await fetch(path, { ...options, headers, cache: 'no-store' });
-      if (response.status === 204) return null;
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || `요청 실패 (HTTP ${response.status})`);
-      return data;
+    const api = authenticatedFetch;
+
+    function clearProtectedContent() {
+      workspace.hidden = true;
+      renderRows(sampleList, [], false);
+      renderRows(noteList, [], true);
+      resetEditor();
     }
 
     async function loadNotes() {
@@ -184,6 +301,84 @@
       const result = await api('/api/my/notes');
       renderRows(sampleList, result.samples || [], false);
       renderRows(noteList, result.notes || [], true);
+    }
+
+    function deviceRequestHeaders(token) {
+      return { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
+    }
+
+    async function verifyCurrentDevice(session) {
+      clearProtectedContent();
+      devicePanel.hidden = false;
+      deviceRequest.hidden = true;
+      deviceRetry.hidden = true;
+      showMessage(deviceError);
+      showMessage(deviceStatus, '서버 승인 상태를 확인합니다.');
+      const statusResponse = await fetch('/api/device/status', {
+        headers: { Authorization: `Bearer ${session.access_token}` }, cache: 'no-store',
+      });
+      const status = await statusResponse.json().catch(() => ({}));
+      if (!statusResponse.ok) throw new Error(status.error || '기기 승인 상태를 확인할 수 없습니다.');
+      if (status.status === 'not_registered') {
+        showMessage(deviceStatus, '이 인증기는 아직 승인 요청을 하지 않았습니다.');
+        deviceRequest.hidden = false;
+        return false;
+      }
+      if (status.status === 'pending') {
+        showMessage(deviceStatus, '승인 대기 중입니다. 서버 승인이 끝나기 전에는 자료를 열 수 없습니다.');
+        deviceRetry.hidden = false;
+        return false;
+      }
+      if (status.status !== 'verification_required' || !status.publicKey) {
+        throw new Error('서버 승인 상태를 확인할 수 없습니다.');
+      }
+      if (!navigator.credentials?.get) throw new Error('이 브라우저는 Passkey 기기 확인을 지원하지 않습니다.');
+      showMessage(deviceStatus, '승인된 Passkey로 기기를 확인하세요.');
+      const assertion = await navigator.credentials.get({ publicKey: credentialOptions(status.publicKey) });
+      if (!assertion) throw new Error('기기 확인이 취소되었습니다.');
+      const verification = await fetch('/api/device/status/verify', {
+        method: 'POST',
+        headers: deviceRequestHeaders(session.access_token),
+        body: JSON.stringify({ challenge: status.challenge, credential: serializeCredential(assertion) }),
+        cache: 'no-store',
+      });
+      const result = await verification.json().catch(() => ({}));
+      if (!verification.ok || result.status !== 'approved') {
+        throw new Error(result.error || '서버가 이 기기를 승인된 기기로 확인하지 못했습니다.');
+      }
+      devicePanel.hidden = true;
+      workspace.hidden = false;
+      await loadNotes();
+      return true;
+    }
+
+    async function requestDeviceApproval() {
+      const sessionResult = await supabase.auth.getSession();
+      const session = sessionResult.data.session;
+      if (!session?.access_token) throw new Error('로그인 세션이 없습니다. 다시 로그인해 주세요.');
+      if (!navigator.credentials?.create) throw new Error('이 브라우저는 Passkey 등록을 지원하지 않습니다.');
+      const start = await fetch('/api/device/register/options', {
+        method: 'POST',
+        headers: deviceRequestHeaders(session.access_token), body: '{}', cache: 'no-store',
+      });
+      const options = await start.json().catch(() => ({}));
+      if (!start.ok || !options.publicKey) throw new Error(options.error || '승인 요청을 시작할 수 없습니다.');
+      const credential = await navigator.credentials.create({ publicKey: credentialOptions(options.publicKey) });
+      if (!credential) throw new Error('Passkey 등록이 취소되었습니다.');
+      const response = await fetch('/api/device/register', {
+        method: 'POST',
+        headers: deviceRequestHeaders(session.access_token),
+        body: JSON.stringify({ credential: serializeCredential(credential) }),
+        cache: 'no-store',
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || result.status !== 'pending') {
+        throw new Error(result.error || '기기 승인 요청을 저장하지 못했습니다.');
+      }
+      showMessage(deviceError);
+      showMessage(deviceStatus, '승인 요청을 보냈습니다. 운영자가 서버에서 승인하기 전에는 자료를 열 수 없습니다.');
+      deviceRequest.hidden = true;
+      deviceRetry.hidden = false;
     }
 
     function resetEditor() {
@@ -223,21 +418,26 @@
       currentSession = token;
       loginPanel.hidden = Boolean(session);
       accountPanel.hidden = !session;
-      workspace.hidden = !session;
+      workspace.hidden = true;
+      devicePanel.hidden = !session;
       showMessage(loginError);
       showMessage(appError);
       if (!session) {
+        devicePanel.hidden = true;
+        deviceRequest.hidden = true;
+        deviceRetry.hidden = true;
         accountLabel.textContent = '';
-        renderRows(sampleList, [], false);
-        renderRows(noteList, [], true);
-        resetEditor();
+        clearProtectedContent();
         return;
       }
       accountLabel.textContent = `로그인됨 · ${session.user?.email || '계정'}`;
       try {
-        await loadNotes();
+        await verifyCurrentDevice(session);
       } catch (error) {
-        showMessage(appError, error.message);
+        clearProtectedContent();
+        showMessage(deviceStatus, '서버에서 승인된 기기 확인이 필요합니다.');
+        showMessage(deviceError, error.message);
+        deviceRetry.hidden = false;
       }
     }
 
@@ -276,6 +476,26 @@
     });
 
     cancelEdit.addEventListener('click', resetEditor);
+    deviceRequest.addEventListener('click', async () => {
+      deviceRequest.disabled = true;
+      showMessage(deviceError);
+      try {
+        await requestDeviceApproval();
+      } catch (error) {
+        showMessage(deviceError, error.message || '기기 승인 요청에 실패했습니다.');
+      } finally {
+        deviceRequest.disabled = false;
+      }
+    });
+    deviceRetry.addEventListener('click', async () => {
+      const sessionResult = await supabase.auth.getSession();
+      try {
+        if (sessionResult.data.session) await verifyCurrentDevice(sessionResult.data.session);
+      } catch (error) {
+        clearProtectedContent();
+        showMessage(deviceError, error.message || '기기 승인을 다시 확인하지 못했습니다.');
+      }
+    });
     noteForm.addEventListener('submit', async event => {
       event.preventDefault();
       saveButton.disabled = true;
@@ -302,6 +522,8 @@
       window.setTimeout(() => { void showSession(session); }, 0);
     });
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    updateInstallStatus();
+    window.matchMedia('(display-mode: standalone)').addEventListener?.('change', updateInstallStatus);
     if (sessionError) showMessage(loginError, sessionError.message);
     await showSession(session);
   </script>

@@ -1,3 +1,4 @@
 import { createNoteItemHandler } from '../../src/notes-api.mjs';
+import { createDeviceProtectedHandler } from '../../src/device-approval.mjs';
 
-export default createNoteItemHandler();
+export default createDeviceProtectedHandler(createNoteItemHandler());

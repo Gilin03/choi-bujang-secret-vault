@@ -16,10 +16,14 @@ export async function runAttackChecks(config) {
     throw new Error('aleph.config.json의 실제 배포 주소를 먼저 넣어 주세요.');
   }
 
-  async function request(path, method = 'GET') {
+  async function request(path, method = 'GET', body) {
     try {
       return await fetch(new URL(path, app), {
         method,
+        ...(body === undefined ? {} : {
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        }),
         redirect: 'error',
         signal: AbortSignal.timeout(10000),
       });
@@ -56,6 +60,18 @@ export async function runAttackChecks(config) {
     ? `비로그인 POST /api/notes HTTP ${writeResponse.status}${writeResponse.status === 401 ? ', 인증 거부 확인' : ', 인증 없이 거부되지 않음'}`
     : '비로그인 POST /api/notes 응답 없음';
 
+  const deviceStatusResponse = await request('/api/device/status');
+  const deviceStatusObserved = deviceStatusResponse
+    ? `비로그인 GET /api/device/status HTTP ${deviceStatusResponse.status}${deviceStatusResponse.status === 401 ? ', 인증 거부 확인' : ', 인증 없이 거부되지 않음'}`
+    : '비로그인 GET /api/device/status 응답 없음';
+
+  const deviceChallengeResponse = await request('/api/device/challenge', 'POST', {
+    method: 'GET', path: '/api/my/notes',
+  });
+  const deviceChallengeObserved = deviceChallengeResponse
+    ? `비로그인 POST /api/device/challenge HTTP ${deviceChallengeResponse.status}${deviceChallengeResponse.status === 401 ? ', 인증 거부 확인' : ', 인증 없이 거부되지 않음'}`
+    : '비로그인 POST /api/device/challenge 응답 없음';
+
   return [
     {
       attackId: 'anonymous_note_read',
@@ -71,6 +87,16 @@ export async function runAttackChecks(config) {
       attackId: 'anonymous_note_write',
       expected: '비로그인 POST /api/notes는 401로 거부됨',
       observed: writeObserved,
+    },
+    {
+      attackId: 'anonymous_device_status',
+      expected: '비로그인 GET /api/device/status는 401로 거부됨',
+      observed: deviceStatusObserved,
+    },
+    {
+      attackId: 'anonymous_device_challenge',
+      expected: '비로그인 POST /api/device/challenge는 401로 거부됨',
+      observed: deviceChallengeObserved,
     },
   ];
 }

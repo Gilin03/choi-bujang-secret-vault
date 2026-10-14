@@ -1,6 +1,6 @@
-# BYTE BACK 방어전 자료실 — 10단계
+# BYTE BACK 방어전 자료실 — 11단계
 
-이 저장소는 Supabase Auth 로그인과 서버 측 사용자별 소유권 검사를 유지하면서 메모 자료 요청을 Vercel 서버 함수로 모으고, 엔진의 가상 접속·자원 구역 판정, 가상 사건 탐지, 검증된 정책·메모 복구 연습을 추가한 10단계 학습용 자료실입니다. 메모 데이터는 가상 자료만 사용합니다.
+이 저장소는 Supabase Auth 로그인과 서버 측 사용자별 소유권 검사를 유지하면서 메모 자료 요청을 Vercel 서버 함수로 모으고, 엔진의 가상 접속·자원 구역 판정, 가상 사건 탐지, 검증된 정책·메모 복구 연습, 설치형 화면과 Passkey 기기 승인 요청을 추가한 11단계 학습용 자료실입니다. 메모 데이터는 가상 자료만 사용합니다.
 
 이 프로젝트는 1단계에서 학생 본인의 GitHub 저장소와 Vercel 배포를 만든 시작 틀에서 이어집니다. 새로 시작하는 학생은 GitHub 계정을 만든 뒤 방어전 1단계 카드의 **Deploy** 흐름에서 본인 계정의 공개 저장소와 Vercel 프로젝트를 만들고, 배포 주소를 카드에 제출합니다. 이 자료실은 그 같은 저장소와 배포를 단계별로 보강합니다.
 
@@ -20,6 +20,32 @@
 - 9단계 `src/detect.mjs`는 `docs/DETECT_EVENTS.md` 계약의 시각·메서드·가명 `identity.sub`만 읽습니다. 같은 가명 주체의 GET이 임의의 10분 구간에서 120건을 넘으면 `propose_revocation`을 제안하고, 실제 접근 회수는 수행하지 않습니다.
 - 로컬 점검: `node --test test/auth-proxy.test.mjs`, `npm run test:r5`, `npm run test:stage3`, `npm run build -- --local`, `npm run decider:test`, `npm run fixture:7`, `node --test test/decider-stage7.test.mjs`, `npm run test:stage8`, `npm run detect:test`, `node --test test/detect-stage9.test.mjs`.
 - 저장점 커밋과 실제 배포가 끝난 뒤 `npm run bundle`을 실행하면 실제 비로그인 요청의 상태만 제출 묶음에 기록합니다. 이 결과는 학생의 자체 점검이며 심판 판정이 아닙니다. A 계정의 정상 로그인과 메모 CRUD는 웹 화면에서 별도로 확인해야 합니다. `bundle-notes.json`과 `artifacts/submission.json`은 커밋하지 않습니다.
+
+## 11단계 설치형 화면과 기기 승인
+
+- `/manifest.webmanifest`는 `BYTE BACK 자료실` 이름, 독립 실행 표시, 아이콘, 오프라인 안내를 제공합니다. 화면에는 브라우저/설치 앱 실행 상태를 보여 주며, 설치 표시는 기기 승인으로 취급하지 않습니다. 오프라인 화면에서는 자료를 보여 주거나 저장하지 않습니다.
+- 로그인 뒤 서버가 등록 상태를 확인합니다. 처음에는 **기기 승인 요청**을 눌러 플랫폼 Passkey를 등록합니다. 서버는 WebAuthn challenge·출처·RP ID를 확인한 공개 키를 `pending`으로 저장합니다. 이 단계만으로는 자료 API가 열리지 않습니다.
+- 운영자는 Supabase **SQL Editor**에서 [`stage11-device-approval.sql`](supabase/stage11-device-approval.sql)을 적용하고, 검토한 대기 행만 승인합니다. 상태 변경 예시는 아래와 같습니다. 행 ID와 `owner_id`는 승인 대상 행과 Auth 사용자 레코드에서 직접 대조하세요.
+
+  ```sql
+  select id, owner_id, status, created_at
+  from public.vault_registered_devices
+  where status = 'pending'
+  order by created_at;
+  ```
+
+  ```sql
+  update public.vault_registered_devices
+  set status = 'approved', approved_at = now()
+  where id = '<검토한 대기 행 UUID>'
+    and owner_id = '<대조한 Auth 사용자 UUID>'
+    and status = 'pending';
+  ```
+
+- 승인 후 화면에서 **승인 상태 다시 확인**을 누르면 서버가 승인된 Passkey 서명을 검증합니다. 이후 자료 API도 요청마다 새 일회성 challenge, 로그인 사용자, 승인된 credential 서명과 요청 경로를 확인합니다. 누락·잘못된 서명, 다른 사용자 credential, 재사용 challenge는 자료 처리기 앞에서 거부됩니다. 기존 메모 소유권과 강사 권한 검사는 그대로 이어집니다.
+- 개인키는 플랫폼 인증기에 남습니다. Supabase Auth 세션도 페이지 메모리에서만 유지되어 새로고침하면 다시 로그인합니다. 서명 값과 challenge를 브라우저 저장소에 쓰지 않습니다.
+- 이 연습의 `attestation: none` Passkey는 승인된 자격 증명의 소유 확인이지, 관리형 노트북·설치된 앱·특정 물리 기기를 증명하지 않습니다. 동기화 Passkey가 다른 기기에서 사용될 수 있으므로 실제 기기 관리 증거라고 표현하지 마세요. 승인 전 자료 미표시와 요청별 서명 검증은 `npm run test:stage11`의 가상 credential 검사로 확인합니다.
+- `npm run test:stage11`은 테스트용 ECDSA credential fixture만 사용합니다. 실제 계정, 실제 Passkey, 실제 심판 판정의 증거가 아닙니다. 웹에서 직접 로그인·Passkey 승인·메모 정상/거부 동작을 확인하세요.
 
 ## 7단계 이상 접속 추가 확인
 
