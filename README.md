@@ -56,7 +56,7 @@
 - `notes` 서비스의 `POST /api/notes/:id/restore`는 Vercel 함수 `api/notes/[id]/restore.mjs`가 처리합니다. 판정기 허용 경로에도 이 단건 경로만 등록했습니다.
 - Stage 10 시작 시 Supabase **SQL Editor**에서 [`stage10-note-backups.sql`](supabase/stage10-note-backups.sql)을 적용합니다. 기존 owner가 있는 메모를 `public.vault_note_backups`에 한 번 캡처하고, 이후 메모 INSERT도 최초 상태만 자동 저장합니다. 백업 행은 API에서 수정·삭제하지 않습니다.
 - 복원 API는 URL ID로 해당 backup 한 건만 조회하고 로그인 owner와 ID·내용 SHA-256을 확인합니다. 변조된 메모는 제목·내용을 갱신하고, 삭제된 메모는 백업 ID·owner로 다시 넣은 뒤 DB에서 ID·owner·내용 해시를 확인합니다. 요청 본문은 사용하지 않으며 다른 메모와 감사 테이블은 쓰지 않습니다.
-- `node --test test/note-restore.test.mjs`는 B 메모의 변조·삭제 복원과 백업 검증을 메모리 DB fixture로 확인합니다. 실제 Supabase SQL 적용, 연결 DB 복원, 배포는 실행하지 않았습니다.
+- `node --test test/note-restore.test.mjs`는 B 메모의 변조·삭제 복원과 백업 검증을 메모리 DB fixture로 확인합니다. Production SQL 적용과 Vercel 배포는 진행됐지만, 실제 B 메모를 변조·삭제하는 Production 복원 E2E와 연결 DB 복원 검증은 미실행입니다.
 
 ## Supabase 학습용 테이블
 

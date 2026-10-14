@@ -81,8 +81,11 @@ function requestId(request) {
 function restoreRequestId(request) {
   const url = new URL(request.url);
   const match = /^\/api\/notes\/([^/]+)\/restore$/u.exec(url.pathname);
-  if (!match || url.search) return null;
-  try { return decodeURIComponent(match[1]); } catch { return ''; }
+  if (!match) return null;
+  const routeId = request.query?.id ?? match[1];
+  if (typeof routeId !== 'string') return '';
+  if (request.query?.id !== undefined && request.query.id !== null) return routeId;
+  try { return decodeURIComponent(routeId); } catch { return ''; }
 }
 
 function sha256(value) {

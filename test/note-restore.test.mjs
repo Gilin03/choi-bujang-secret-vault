@@ -91,6 +91,16 @@ function restoreRequest(id = noteB, authorization = 'fixture-b', body = {}) {
   });
 }
 
+function vercelRestoreRequest(id, { pathId = id, search = '' } = {}) {
+  const request = new Request(`https://vault.example/api/notes/${pathId}/restore${search}`, {
+    method: 'POST',
+    headers: { Authorization: 'fixture-b', 'Content-Type': 'application/json' },
+    body: '{}',
+  });
+  Object.defineProperty(request, 'query', { value: { id }, configurable: true });
+  return request;
+}
+
 const expectedRestoredNote = {
   id: noteB,
   sort_order: 4,
@@ -222,4 +232,50 @@ test('malformed backup metadata is rejected before touching notes', async () => 
   assert.deepEqual(database.tables.vault_notes, []);
   assert.equal(database.calls.length, 1);
   assert.equal(database.calls[0].table, 'vault_note_backups');
+});
+
+test('Vercel dynamic [id] route parameter in request.query.id selects its backup', async () => {
+  const { handler, database } = makeHandler({ rows: [] });
+  const response = await handler.fetch(vercelRestoreRequest(noteB));
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(database.calls[0].filters, [['note_id', noteB]]);
+});
+
+test('request.query.id takes priority over the pathname ID', async () => {
+  const { handler, database } = makeHandler({ rows: [] });
+  const response = await handler.fetch(vercelRestoreRequest(noteB, { pathId: noteA }));
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(database.calls[0].filters, [['note_id', noteB]]);
+});
+
+test('a valid pathname ID remains usable when the URL has unrelated query parameters', async () => {
+  const { handler, database } = makeHandler({ rows: [] });
+  const response = await handler.fetch(vercelRestoreRequest(noteB, { search: '?source=production' }));
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(database.calls[0].filters, [['note_id', noteB]]);
+});
+
+test('an invalid dynamic route UUID is rejected before database access', async () => {
+  const { handler, database } = makeHandler({ rows: [] });
+  const response = await handler.fetch(vercelRestoreRequest('not-a-uuid'));
+
+  assert.equal(response.status, 400);
+  assert.equal(database.calls.length, 0);
+});
+
+test('an unrelated pathname is rejected even when request.query.id is present', async () => {
+  const { handler, database } = makeHandler({ rows: [] });
+  const request = new Request('https://vault.example/api/other/restore', {
+    method: 'POST',
+    headers: { Authorization: 'fixture-b' },
+  });
+  Object.defineProperty(request, 'query', { value: { id: noteB }, configurable: true });
+
+  const response = await handler.fetch(request);
+
+  assert.equal(response.status, 404);
+  assert.equal(database.calls.length, 0);
 });
