@@ -1,9 +1,7 @@
 import { createHash } from 'node:crypto';
 
 const SNAPSHOT_SCHEMA = 'aleph.stage10.policy-snapshot.v1';
-const COMMIT = /^[0-9a-f]{40}$/iu;
-const BLOB = /^[0-9a-f]{40}$/iu;
-export const VERIFIED_POLICY_SHA256 = '076831225abcc08c063a61536d3532343c779ea8aa1e786a5f0caef260d5c37a';
+export const VERIFIED_POLICY_SHA256 = 'bafff61ff9336eb11e78c4c0f874320e8a01a2cf5c52ea99297d9dfa2485360c';
 
 function isRecord(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -23,8 +21,7 @@ function sortedRoutes(routes) {
 function policyPayload(snapshot) {
   return {
     schema: snapshot.schema,
-    snapshotId: snapshot.snapshotId,
-    source: snapshot.source,
+    policyRevision: snapshot.policyRevision,
     rules: [...snapshot.rules].sort(),
     routes: sortedRoutes(snapshot.routes),
   };
@@ -37,10 +34,7 @@ export function policySnapshotSha256(snapshot) {
 
 export function verifyPolicySnapshotIntegrity(snapshot) {
   if (!isRecord(snapshot) || snapshot.schema !== SNAPSHOT_SCHEMA
-      || snapshot.snapshotId !== 'stage9-safe-policy'
-      || !isRecord(snapshot.source) || !COMMIT.test(snapshot.source.commit ?? '')
-      || snapshot.source.path !== 'src/decider.mjs' || !BLOB.test(snapshot.source.gitBlob ?? '')
-      || snapshot.source.configPath !== 'aleph.config.json' || !BLOB.test(snapshot.source.configGitBlob ?? '')
+      || !Number.isInteger(snapshot.policyRevision) || snapshot.policyRevision < 1
       || !Array.isArray(snapshot.rules) || snapshot.rules.length === 0
       || snapshot.rules.some((rule) => typeof rule !== 'string' || !/^[a-z][a-z0-9_.-]{0,79}$/u.test(rule))
       || !Array.isArray(snapshot.routes) || snapshot.routes.length === 0
@@ -88,7 +82,7 @@ export function createPolicyRestorePreview({ snapshot, currentPolicy }) {
   const removedRules = currentPolicy.rules.filter((rule) => !snapshot.rules.includes(rule)).sort();
   const routeChanges = routeDiff(snapshot, currentPolicy);
   return {
-    policyRevision: snapshot.source.commit,
+    policyRevision: snapshot.policyRevision,
     policySha256: snapshot.sha256.toLowerCase(),
     currentRules: [...currentPolicy.rules],
     safeRules: [...snapshot.rules],
@@ -113,8 +107,7 @@ export function restoreTestPolicy({ snapshot, currentPolicy, confirmed = false, 
   restored.routes = sortedRoutes([...routes, ...snapshot.routes]);
   restored.auditHistory = [...(currentPolicy.auditHistory ?? []), {
     action: 'test_policy_restored',
-    snapshotId: snapshot.snapshotId,
-    sourceCommit: snapshot.source.commit,
+    policyRevision: snapshot.policyRevision,
     policySha256: snapshot.sha256.toLowerCase(),
     at,
     changedRoutes: preview.routeChanges.length,

@@ -47,8 +47,8 @@
 
 ## 10단계 백업에서 자료실 복원
 
-- 안전 정책 사본은 `policy/verified-policy.json`입니다. 9단계 기준 커밋 `7870df1452c9cd3a045c3edfa7171d452bc653da`의 `src/decider.mjs`와 `aleph.config.json` Git blob을 기록하고, 파일의 SHA-256을 코드에 고정해 검증합니다. 이 파일은 `public/` 밖에 있어 정적 사이트 출력에 포함되지 않습니다.
-- `npm run policy:diff`는 사본을 다시 읽고 해시와 Git 기준 파일을 검증한 뒤 현재 `RULE_IDS` 및 `allowedRoutes`와의 변경만 보여 줍니다. `npm run policy:restore`는 미리보기만 합니다. `npm run policy:restore -- --apply`는 규칙 이름이 사본과 같을 때에만 사본이 관리하는 서비스의 경로를 `aleph.config.json`에 복원하고 `policy/audit.jsonl`에 한 줄을 덧붙입니다. 사본에 없는 서비스 경로와 기존 감사 줄은 보존합니다. 운영 판정기와 Supabase 정책은 수정하지 않습니다.
+- 안전 정책 사본은 `policy/verified-policy.json`이며 버전·규칙 ID·구역별 경로와 SHA-256을 담습니다. SHA-256은 `src/stage10-policy-recovery.mjs`에 고정해 사본을 다시 읽을 때마다 검증합니다. 사본은 `public/` 밖에 있어 정적 사이트 출력에 포함되지 않으며, 정책 확인에 로컬 Git 이력은 필요하지 않습니다.
+- `npm run policy:diff`는 사본을 다시 읽고 해시를 검증한 뒤 현재 `RULE_IDS` 및 `allowedRoutes`와의 변경만 보여 줍니다. 복구 POST 경로도 정책 사본과 판정 구역에 등록되어 있습니다. `npm run policy:restore`는 미리보기만 합니다. `npm run policy:restore -- --apply`는 규칙 이름이 사본과 같을 때에만 사본이 관리하는 서비스의 경로를 `aleph.config.json`에 복원하고 `policy/audit.jsonl`에 한 줄을 덧붙입니다. 사본에 없는 서비스 경로와 기존 감사 줄은 보존합니다. 운영 판정기와 Supabase 정책은 수정하지 않습니다.
 - 메모 복구 API는 `POST /api/recovery/notes/:id`입니다. 빈 본문은 미리보기이고 `{ "confirm": true }`일 때만 복원합니다. 각 요청에서 안전 정책과 해당 ID의 `note_snapshots`를 다시 읽어 검증하며, 요청 사용자와 저장된 owner를 대조합니다. 미리보기는 버전·변경 필드만 반환합니다. 확인 요청은 해당 메모 한 건만 수정하거나 삭제된 경우 같은 ID·owner로 삽입하고, DB에서 다시 읽은 ID·owner·내용 SHA-256을 대조한 뒤 `note_recovery_audit`에 본문 없이 감사 행을 추가합니다. 검증 실패는 DB 변경 전에 중단합니다.
 - `supabase/stage10-note-snapshots.sql`은 이전에 승인·적용한 additive migration의 저장소 사본입니다. 이 작업에서 SQL을 다시 실행하거나 기존 메모·snapshot·감사 행을 변경하지 않았습니다. Stage 10 API 테스트는 로컬 가상 계정과 fake DB를 사용하며 실제 시험 계정 B를 수정하지 않습니다.
 
@@ -56,8 +56,8 @@
 
 | 확인 | 결과 | 범위 |
 | --- | --- | --- |
-| Stage 10 정책·메모 복구 | 실행, 통과 15/15 | `npm run test:stage10`; 로컬 fake DB와 가상 B 메모, Production 자료는 변경하지 않음 |
-| 정책 사본 다시 읽기·비교 | 실행, 차이 없음 | `npm run policy:diff`; 기준 Git blob과 SHA-256 검증 |
+| Stage 10 정책·메모 복구 | 실행, 통과 19/19 | `npm run test:stage10`; 로컬 fake DB와 가상 B 메모, Production 자료는 변경하지 않음 |
+| 정책 사본 다시 읽기·비교 | 실행, 차이 없음 | `npm run policy:diff`; 고정 SHA-256 검증 |
 | 판정기 정상·거부 가상 요청 | 실행, 통과 | `npm run decider:test`; 등록·미등록 기기, 복합 이상 접속, 재확인 흐름 |
 | Stage 7 복합 접속 규칙 | 실행, 통과 5/5 | `node --test test/decider-stage7.test.mjs` |
 | Stage 8 자원 구역·API 권한 | 실행, 통과 17/17 | `npm run test:stage8` |

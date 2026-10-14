@@ -107,7 +107,7 @@ test('preview is read-only, shows policy and snapshot versions, and restore appe
   assert.equal(preview.operation, 'preview');
   assert.equal(preview.before, 'modified');
   assert.deepEqual(preview.changes, ['title', 'content']);
-  assert.equal(preview.version.policyRevision, policySnapshot.source.commit);
+  assert.equal(preview.version.policyRevision, policySnapshot.policyRevision);
   assert.equal(preview.version.policySha256, policySnapshot.sha256);
   assert.equal(preview.version.snapshotSha256, fixture.database.tables.note_snapshots[0].snapshot_sha256);
   assert.deepEqual(fixture.database.tables.vault_notes, beforeNotes);

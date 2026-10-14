@@ -80,7 +80,8 @@ function routePolicy(configValue) {
     if (!match) throw new Error('invalid_route');
     const [, method, pathPattern] = match;
     const service = pathPattern.startsWith('/api/announcements') ? 'announcements'
-      : pathPattern.startsWith('/api/notes') || pathPattern.startsWith('/api/my/notes') ? 'notes' : null;
+      : pathPattern.startsWith('/api/notes') || pathPattern.startsWith('/api/my/notes')
+        || pathPattern.startsWith('/api/recovery/notes/') ? 'notes' : null;
     if (!service) throw new Error('unknown_route');
     return {
       service,

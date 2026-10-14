@@ -17,6 +17,7 @@ const ZONES = Object.freeze({
   'GET /notes/:id': { path: NOTE_ITEM, operation: 'get' },
   'PUT /notes/:id': { path: NOTE_ITEM, operation: 'put' },
   'DELETE /notes/:id': { path: NOTE_ITEM, operation: 'delete' },
+  'POST /recovery/notes/:id': { path: new RegExp(`^/recovery/notes/${NOTE_ID}$`, 'u'), operation: 'restore' },
 });
 
 function stripApi(value) {
@@ -49,7 +50,8 @@ export function classifyResourceRequest(request) {
   const rule = ZONES[`${method} ${canonicalRoute}`];
   if (!rule || !rule.path.test(canonicalPath)) return null;
 
-  const noteId = canonicalPath.startsWith('/notes/') ? canonicalPath.slice('/notes/'.length) : null;
+  const noteId = canonicalPath.startsWith('/notes/') ? canonicalPath.slice('/notes/'.length)
+    : canonicalPath.startsWith('/recovery/notes/') ? canonicalPath.slice('/recovery/notes/'.length) : null;
   if (noteId !== null && NOTE_FUNCTION_SEGMENTS.has(noteId.toLowerCase())) return null;
 
   return { resourceId: RESOURCE_IDS.personalNotes, operation: rule.operation };

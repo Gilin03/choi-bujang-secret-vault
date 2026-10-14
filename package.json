@@ -10,7 +10,7 @@
     "bundle": "node scripts/bundle.mjs",
     "decider:test": "node scripts/decider-test.mjs",
     "test:stage8": "node --test test/decider-stage8.test.mjs test/stage8-api.test.mjs",
-    "test:stage10": "node --test test/stage10-policy-recovery.test.mjs test/stage10-recovery-api.test.mjs",
+    "test:stage10": "node --test test/stage10-policy-recovery.test.mjs test/stage10-policy-cli.test.mjs test/stage10-recovery-api.test.mjs",
     "recovery:policy": "node scripts/policy.mjs",
     "policy:diff": "node scripts/policy.mjs preview",
     "policy:restore": "node scripts/policy.mjs restore",

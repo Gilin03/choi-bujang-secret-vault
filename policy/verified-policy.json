@@ -1,13 +1,6 @@
 {
   "schema": "aleph.stage10.policy-snapshot.v1",
-  "snapshotId": "stage9-safe-policy",
-  "source": {
-    "commit": "7870df1452c9cd3a045c3edfa7171d452bc653da",
-    "path": "src/decider.mjs",
-    "gitBlob": "c03f86ab003ead5a29d325d16b2dbdcb68e3ffd0",
-    "configPath": "aleph.config.json",
-    "configGitBlob": "a1b838385ceeef5c3e5b53250da117d0c0168d45"
-  },
+  "policyRevision": 10,
   "rules": [
     "device_registered",
     "resource_zone",
@@ -52,6 +45,12 @@
     },
     {
       "service": "notes",
+      "method": "POST",
+      "pathPattern": "/api/recovery/notes/:id",
+      "zone": "personal_notes"
+    },
+    {
+      "service": "notes",
       "method": "PUT",
       "pathPattern": "/api/notes/:id",
       "zone": "personal_notes"
@@ -63,5 +62,5 @@
       "zone": "instructor_announcements"
     }
   ],
-  "sha256": "076831225abcc08c063a61536d3532343c779ea8aa1e786a5f0caef260d5c37a"
+  "sha256": "bafff61ff9336eb11e78c4c0f874320e8a01a2cf5c52ea99297d9dfa2485360c"
 }
