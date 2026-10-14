@@ -45,26 +45,6 @@
 - 이 사건 계약에는 네트워크·기기 ID·기존 판정 결과가 없습니다. 따라서 구현은 그 신호를 꾸며내지 않고, 제안 대상도 계약에서 확인되는 가명 `subject`로 한정합니다. 실제 세션 회수·차단·경과 시간 측정은 연결하거나 검증하지 않았습니다.
 - `npm run detect:test`와 `node --test test/detect-stage9.test.mjs`는 로컬 가상 사건만 확인합니다. 이 테스트 통과는 운영 사건 전달, 실제 권한 회수, 또는 심판 결과를 뜻하지 않습니다.
 
-## 10단계 백업에서 자료실 복원
-
-- 안전 정책 사본은 `policy/verified-policy.json`이며 버전·규칙 ID·구역별 경로와 SHA-256을 담습니다. SHA-256은 `src/stage10-policy-recovery.mjs`에 고정해 사본을 다시 읽을 때마다 검증합니다. 사본은 `public/` 밖에 있어 정적 사이트 출력에 포함되지 않으며, 정책 확인에 로컬 Git 이력은 필요하지 않습니다.
-- `npm run policy:diff`는 사본을 다시 읽고 해시를 검증한 뒤 현재 `RULE_IDS` 및 `allowedRoutes`와의 변경만 보여 줍니다. 복구 POST 경로도 정책 사본과 판정 구역에 등록되어 있습니다. `npm run policy:restore`는 미리보기만 합니다. `npm run policy:restore -- --apply`는 규칙 이름이 사본과 같을 때에만 사본이 관리하는 서비스의 경로를 `aleph.config.json`에 복원하고 `policy/audit.jsonl`에 한 줄을 덧붙입니다. 사본에 없는 서비스 경로와 기존 감사 줄은 보존합니다. 운영 판정기와 Supabase 정책은 수정하지 않습니다.
-- 메모 복구 API는 `POST /api/recovery/notes/:id`입니다. 빈 본문은 미리보기이고 `{ "confirm": true }`일 때만 복원합니다. 각 요청에서 안전 정책과 해당 ID의 `note_snapshots`를 다시 읽어 검증하며, 요청 사용자와 저장된 owner를 대조합니다. 미리보기는 버전·변경 필드만 반환합니다. 확인 요청은 해당 메모 한 건만 수정하거나 삭제된 경우 같은 ID·owner로 삽입하고, DB에서 다시 읽은 ID·owner·내용 SHA-256을 대조한 뒤 `note_recovery_audit`에 본문 없이 감사 행을 추가합니다. 검증 실패는 DB 변경 전에 중단합니다.
-- `supabase/stage10-note-snapshots.sql`은 이전에 승인·적용한 additive migration의 저장소 사본입니다. 이 작업에서 SQL을 다시 실행하거나 기존 메모·snapshot·감사 행을 변경하지 않았습니다. Stage 10 API 테스트는 로컬 가상 계정과 fake DB를 사용하며 실제 시험 계정 B를 수정하지 않습니다.
-
-### 복구 뒤 재시험 기록
-
-| 확인 | 결과 | 범위 |
-| --- | --- | --- |
-| Stage 10 정책·메모 복구 | 실행, 통과 19/19 | `npm run test:stage10`; 로컬 fake DB와 가상 B 메모, Production 자료는 변경하지 않음 |
-| 정책 사본 다시 읽기·비교 | 실행, 차이 없음 | `npm run policy:diff`; 고정 SHA-256 검증 |
-| 판정기 정상·거부 가상 요청 | 실행, 통과 | `npm run decider:test`; 등록·미등록 기기, 복합 이상 접속, 재확인 흐름 |
-| Stage 7 복합 접속 규칙 | 실행, 통과 5/5 | `node --test test/decider-stage7.test.mjs` |
-| Stage 8 자원 구역·API 권한 | 실행, 통과 17/17 | `npm run test:stage8` |
-| 전체 자동 회귀 | 실행, 통과 101/101 | `node --test test/*.test.mjs`; Stage 1~9 기존 API·판정·탐지/XDR 회귀 포함 |
-| 시험 정책 실제 복원 적용 | 미실행 | 현재 정책과 사본 차이가 없어 변경할 경로가 없음 |
-| 실제 계정 B 변조·복원 및 Production 재시험 | 미실행 | 실제 메모를 바꾸지 않았고 계정 세션으로 호출하지 않음 |
-
 ## Supabase 학습용 테이블
 
 연결된 `defense` 프로젝트의 `public.vault_notes` 초기 네 샘플(`sort_order` 1–4)은 A 소유 세 건, B 소유 한 건으로 지정했습니다. 최근 재점검 때 추가 소유 메모 두 건도 확인했습니다. `owner_id uuid`에는 `auth.users` 외래키가 없습니다. RLS와 읽기·추가·수정·삭제 소유자 정책을 적용했습니다. 서버 API도 검증한 사용자 ID로 각 요청을 제한합니다.

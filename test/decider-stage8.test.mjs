@@ -178,7 +178,6 @@ test('allowedRoutes uses this project string schema for deployed Stage 8 API rou
     'GET /api/notes/:id',
     'PUT /api/notes/:id',
     'DELETE /api/notes/:id',
-    'POST /api/recovery/notes/:id',
     'GET /api/announcements',
     'GET /api/announcements/:id',
     'PUT /api/announcements/:id',
