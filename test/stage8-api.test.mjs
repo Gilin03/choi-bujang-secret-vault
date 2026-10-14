@@ -104,7 +104,7 @@ test('note item GET uses Vercel request.query.id before its pathname fallback', 
   const { note, database } = makeHandlers({ includeOtherOwnerNote: true });
 
   const response = await note.fetch(vercelNoteRequest(
-    `/api/notes/${noteB}?source=vercel`, noteA, 'GET', 'fixture-a'));
+    '/_vercel/functions/api/notes/[id].mjs', noteA, 'GET', 'fixture-a'));
 
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), { id: noteA, title: 'A memo', body: 'A body' });
@@ -121,12 +121,11 @@ test('note item GET keeps the pathname fallback when Vercel query ID is absent',
   assert.deepEqual(await response.json(), { id: noteA, title: 'A memo', body: 'A body' });
 });
 
-test('note item query ID is UUID-validated and cannot make another pathname valid', async () => {
+test('note item query ID is UUID-validated and pathname fallback rejects unrelated routes', async () => {
   const { note, database } = makeHandlers();
   const invalid = await note.fetch(vercelNoteRequest(
-    `/api/notes/${noteA}?source=vercel`, 'not-a-uuid', 'GET', 'fixture-a'));
-  const unrelated = await note.fetch(vercelNoteRequest(
-    `/api/other/${noteA}?source=vercel`, noteA, 'GET', 'fixture-a'));
+    '/_vercel/functions/api/notes/[id].mjs', 'not-a-uuid', 'GET', 'fixture-a'));
+  const unrelated = await note.fetch(request('/api/other/not-a-note-id', 'GET', 'fixture-a'));
 
   assert.equal(invalid.status, 400);
   assert.equal(unrelated.status, 404);
@@ -137,10 +136,10 @@ test('Vercel item GET retains B own-note access and denies B access to A note', 
   const { note } = makeHandlers({ includeOtherOwnerNote: true });
 
   const own = await note.fetch(vercelNoteRequest(
-    `/api/notes/${noteB}?source=vercel`, noteB,
+    '/_vercel/functions/api/notes/[id].mjs', noteB,
     'GET', 'fixture-b'));
   const crossAccount = await note.fetch(vercelNoteRequest(
-    `/api/notes/${noteA}?source=vercel`, noteA, 'GET', 'fixture-b'));
+    '/_vercel/functions/api/notes/[id].mjs', noteA, 'GET', 'fixture-b'));
 
   assert.equal(own.status, 200);
   assert.deepEqual(await own.json(), {

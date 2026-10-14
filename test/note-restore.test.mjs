@@ -273,9 +273,9 @@ test('an invalid dynamic route UUID is rejected before database access', async (
   assert.equal(database.calls.length, 0);
 });
 
-test('an unrelated pathname is rejected even when request.query.id is present', async () => {
+test('Vercel internal restore URL uses request.query.id without pathname matching', async () => {
   const { handler, database } = makeHandler({ rows: [] });
-  const request = new Request('https://vault.example/api/other/restore', {
+  const request = new Request('https://vault.example/_vercel/functions/api/notes/[id]/restore.mjs', {
     method: 'POST',
     headers: { Authorization: 'fixture-b' },
   });
@@ -283,8 +283,8 @@ test('an unrelated pathname is rejected even when request.query.id is present', 
 
   const response = await handler.fetch(request);
 
-  assert.equal(response.status, 404);
-  assert.equal(database.calls.length, 0);
+  assert.equal(response.status, 200);
+  assert.deepEqual(database.calls[0].filters, [['note_id', noteB]]);
 });
 
 test('post-restore retest preserves owner reads and denies B access to A note', async () => {

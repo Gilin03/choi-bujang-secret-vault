@@ -72,15 +72,16 @@ async function parseBody(request) {
 }
 
 function noteRouteId(request, restore = false) {
+  const queryId = request.query?.id;
+  if (queryId !== undefined && queryId !== null) {
+    return typeof queryId === 'string' ? queryId : '';
+  }
+
   const url = new URL(request.url);
   const match = restore
     ? /^\/api\/notes\/([^/]+)\/restore$/u.exec(url.pathname)
     : /^\/api\/notes\/([^/]+)$/u.exec(url.pathname);
   if (!match) return null;
-  const queryId = request.query?.id;
-  if (queryId !== undefined && queryId !== null) {
-    return typeof queryId === 'string' ? queryId : '';
-  }
   if (!restore && url.search) return null;
   try { return decodeURIComponent(match[1]); } catch { return ''; }
 }
