@@ -14,5 +14,6 @@
     "device_registered",
     "step_up_required",
     "resource_zone"
-  ]
+  ],
+  "sha256": "4a552a859282e6a10e37051fa562656ea8ed735668b6a2fb88504e7faa47a67d"
 }

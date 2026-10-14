@@ -2,14 +2,14 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import config from '../aleph.config.json' with { type: 'json' };
 import { RESOURCE_IDS } from './resource-zones.mjs';
+import { RULE_IDS } from './decider.mjs';
+import { verifyPolicySnapshotIntegrity } from './stage10-policy-recovery.mjs';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 const SHA256 = /^[0-9a-f]{64}$/iu;
-const VERSION = /^[A-Za-z0-9._-]{1,80}$/u;
-const BACKUP_SCHEMA = 'aleph.private-note-backup.v1';
-const MAX_BACKUP_BYTES = 12000;
+const POLICY_FILE_URL = new URL('../recovery/policy-snapshots/stage9-safe-policy.json', import.meta.url);
+const SNAPSHOT_SCHEMA = 'aleph.note-snapshot.v1';
 const MAX_REQUEST_BODY_BYTES = 2048;
-const PRIVATE_BACKUP_URL = new URL('../recovery/private/stage10-b-note-backup.json', import.meta.url);
 let defaultVerifier;
 
 function isRecord(value) {
@@ -17,7 +17,22 @@ function isRecord(value) {
 }
 
 function digest(value) {
-  return createHash('sha256').update(value).digest('hex');
+  return createHash('sha256').update(value, 'utf8').digest('hex');
+}
+
+export function contentSha256(title, content) {
+  return digest(`${title}\u001f${content}`);
+}
+
+// The database trigger uses the same fixed metadata order and newline separators.
+export function noteSnapshotSha256(snapshot) {
+  return digest([
+    snapshot.snapshot_schema,
+    snapshot.snapshot_version,
+    snapshot.note_id,
+    snapshot.owner_id,
+    snapshot.content_sha256,
+  ].join('\n'));
 }
 
 function json(payload, status) {
@@ -58,69 +73,48 @@ async function authenticatedStudent(request, env, injectedVerifier) {
   return { userId: principal.userId };
 }
 
-async function defaultBackupReader() {
+async function defaultPolicyReader() {
   try {
-    return await readFile(PRIVATE_BACKUP_URL, 'utf8');
+    return await readFile(POLICY_FILE_URL, 'utf8');
   } catch {
     return null;
   }
 }
 
-function exactKeys(record, expected) {
-  return Object.keys(record).sort().join(',') === [...expected].sort().join(',');
+function readPolicyResult(value) {
+  let snapshot = value;
+  if (typeof value === 'string') {
+    try { snapshot = JSON.parse(value); } catch { return { error: 'missing_or_invalid' }; }
+  }
+  try {
+    verifyPolicySnapshotIntegrity(snapshot);
+  } catch {
+    return { error: 'missing_or_invalid' };
+  }
+
+  const currentRules = [...RULE_IDS];
+  const expectedRules = [...snapshot.safeRules];
+  const missingRules = expectedRules.filter((rule) => !currentRules.includes(rule)).sort();
+  const extraRules = currentRules.filter((rule) => !expectedRules.includes(rule)).sort();
+  const policy = {
+    policyRevision: snapshot.source.commit,
+    policySha256: snapshot.sha256.toLowerCase(),
+    currentRules,
+    safeRules: expectedRules,
+    missingRules,
+    extraRules,
+  };
+  return missingRules.length || extraRules.length
+    ? { error: 'policy_drift', policy }
+    : { policy };
 }
 
-export async function readVerifiedNoteBackup(noteId, backupReader = defaultBackupReader) {
-  let raw;
-  try {
-    raw = await backupReader(noteId);
-  } catch {
-    return null;
-  }
-  if (typeof raw !== 'string' || Buffer.byteLength(raw, 'utf8') > MAX_BACKUP_BYTES) return null;
-
-  let backup;
-  try {
-    backup = JSON.parse(raw);
-  } catch {
-    return null;
-  }
-  if (!isRecord(backup) || !exactKeys(backup, ['schema', 'version', 'note', 'backupSha256'])
-      || backup.schema !== BACKUP_SCHEMA || !VERSION.test(backup.version ?? '')
-      || !isRecord(backup.note)
-      || !exactKeys(backup.note, ['id', 'ownerId', 'title', 'body', 'contentSha256'])
-      || !UUID.test(backup.note.id ?? '') || !UUID.test(backup.note.ownerId ?? '')
-      || typeof backup.note.title !== 'string' || !backup.note.title.trim()
-      || backup.note.title.length > 200
-      || typeof backup.note.body !== 'string' || !backup.note.body.trim()
-      || backup.note.body.length > 5000
-      || !SHA256.test(backup.note.contentSha256 ?? '')
-      || !SHA256.test(backup.backupSha256 ?? '')) return null;
-
-  const note = {
-    id: backup.note.id,
-    ownerId: backup.note.ownerId,
-    title: backup.note.title,
-    body: backup.note.body,
-  };
-  const contentSha256 = digest(JSON.stringify(note));
-  if (contentSha256 !== backup.note.contentSha256.toLowerCase()) return null;
-
-  const payload = {
-    schema: backup.schema,
-    version: backup.version,
-    note: { ...note, contentSha256: backup.note.contentSha256.toLowerCase() },
-  };
-  const backupSha256 = digest(JSON.stringify(payload));
-  if (backupSha256 !== backup.backupSha256.toLowerCase()) return null;
-
-  if (backup.note.id !== noteId) return { invalidTarget: true };
-  return {
-    note,
-    contentSha256,
-    backupSha256,
-    version: backup.version,
-  };
+async function database(env, injectedFactory) {
+  let factory = injectedFactory;
+  if (!factory) ({ createClient: factory } = await import('@supabase/supabase-js'));
+  return factory(env.SUPABASE_URL, env.SUPABASE_SECRET_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+  });
 }
 
 function requestedId(request) {
@@ -135,72 +129,59 @@ function requestedId(request) {
   }
 }
 
-async function parseBody(request) {
-  const contentLength = Number(request.headers.get('content-length'));
-  if (Number.isFinite(contentLength) && contentLength > MAX_REQUEST_BODY_BYTES) return null;
-  try {
-    const raw = await request.text();
-    if (Buffer.byteLength(raw, 'utf8') > MAX_REQUEST_BODY_BYTES) return null;
-    return JSON.parse(raw);
-  } catch {
-    return null;
+async function parseRequestBody(request) {
+  const raw = await request.text();
+  if (Buffer.byteLength(raw, 'utf8') > MAX_REQUEST_BODY_BYTES) return { error: true };
+  if (!raw.trim()) return { confirm: false };
+
+  let body;
+  try { body = JSON.parse(raw); } catch { return { error: true }; }
+  if (!isRecord(body)) return { error: true };
+  if (Object.keys(body).length === 0 || (Object.keys(body).length === 1 && body.confirm === false)) {
+    return { confirm: false };
   }
+  return Object.keys(body).length === 1 && body.confirm === true ? body : { error: true };
 }
 
-function validOperationBody(body, operation) {
-  if (!isRecord(body) || body.operation !== operation) return false;
-  const keys = Object.keys(body).sort().join(',');
-  if (operation === 'preview') return keys === 'operation';
-  return keys === 'backupSha256,backupVersion,currentContentSha256,operation'
-    && VERSION.test(body.backupVersion ?? '')
-    && SHA256.test(body.backupSha256 ?? '')
-    && (body.currentContentSha256 === null || SHA256.test(body.currentContentSha256 ?? ''));
+function isValidSnapshot(row, requestedNoteId) {
+  if (!isRecord(row)
+      || Object.keys(row).sort().join(',') !== [
+        'captured_at', 'content', 'content_sha256', 'note_id', 'owner_id',
+        'snapshot_schema', 'snapshot_sha256', 'snapshot_version', 'title',
+      ].sort().join(',')
+      || row.snapshot_schema !== SNAPSHOT_SCHEMA
+      || !UUID.test(row.note_id ?? '') || row.note_id !== requestedNoteId
+      || !UUID.test(row.owner_id ?? '')
+      || typeof row.title !== 'string' || !row.title.trim() || row.title.length > 200
+      || typeof row.content !== 'string' || !row.content.trim() || row.content.length > 5000
+      || !UUID.test(row.snapshot_version ?? '')
+      || typeof row.captured_at !== 'string' || !Number.isFinite(Date.parse(row.captured_at))
+      || !SHA256.test(row.content_sha256 ?? '')
+      || !SHA256.test(row.snapshot_sha256 ?? '')) return false;
+
+  return contentSha256(row.title, row.content) === row.content_sha256.toLowerCase()
+    && noteSnapshotSha256(row) === row.snapshot_sha256.toLowerCase();
 }
 
-function rowContentHash(row) {
-  return digest(JSON.stringify({
-    id: row.id,
-    ownerId: row.owner_id,
-    title: row.title,
-    body: row.content,
-  }));
+function currentContentHash(row) {
+  return row ? contentSha256(row.title, row.content) : null;
 }
 
-async function database(env, injectedFactory) {
-  let factory = injectedFactory;
-  if (!factory) ({ createClient: factory } = await import('@supabase/supabase-js'));
-  return factory(env.SUPABASE_URL, env.SUPABASE_SECRET_KEY, {
-    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-  });
+function beforeState(current, snapshot) {
+  if (!current) return 'deleted';
+  return currentContentHash(current) === snapshot.content_sha256 ? 'unchanged' : 'modified';
 }
 
-function isRestoredRow(row, backup) {
-  return Boolean(row && row.id === backup.note.id
-    && row.owner_id === backup.note.ownerId
-    && row.title === backup.note.title
-    && row.content === backup.note.body
-    && rowContentHash(row) === backup.contentSha256);
-}
-
-async function rollbackMutation(supabase, current, backup) {
-  if (current) {
-    return supabase.from('vault_notes')
-      .update({ title: current.title, content: current.content })
-      .eq('id', backup.note.id).eq('owner_id', backup.note.ownerId)
-      .eq('title', backup.note.title).eq('content', backup.note.body)
-      .select('id').maybeSingle();
-  }
-  return supabase.from('vault_notes').delete()
-    .eq('id', backup.note.id).eq('owner_id', backup.note.ownerId)
-    .eq('title', backup.note.title).eq('content', backup.note.body)
-    .select('id').maybeSingle();
+function changedFields(current, snapshot) {
+  if (!current) return ['id', 'owner_id', 'title', 'content'];
+  return ['title', 'content'].filter((field) => current[field] !== snapshot[field]);
 }
 
 export function createPrivateNoteRecoveryHandler({
   env = process.env,
   createClient,
   verifyLogin,
-  backupReader = defaultBackupReader,
+  policyReader = defaultPolicyReader,
 } = {}) {
   return {
     async fetch(request) {
@@ -212,86 +193,104 @@ export function createPrivateNoteRecoveryHandler({
       const auth = await authenticatedStudent(request, env, verifyLogin);
       if (auth.error) return auth.error;
 
-      const body = await parseBody(request);
-      if (!isRecord(body) || !['preview', 'restore'].includes(body.operation)
-          || !validOperationBody(body, body.operation)) {
-        return json({ error: 'Invalid recovery request' }, 400);
-      }
+      let input;
+      try { input = await parseRequestBody(request); } catch { input = { error: true }; }
+      if (input.error) return json({ error: 'Invalid recovery request' }, 400);
 
-      const backup = await readVerifiedNoteBackup(id, backupReader);
-      if (!backup) return json({ error: 'Recovery backup unavailable or invalid' }, 503);
-      if (backup.invalidTarget || backup.note.ownerId !== auth.userId) {
-        return json({ error: 'Recovery backup not found' }, 404);
+      let policyRaw;
+      try { policyRaw = await policyReader(); } catch { policyRaw = null; }
+      const policyResult = readPolicyResult(policyRaw);
+      if (policyResult.error === 'missing_or_invalid') {
+        return json({ error: 'POLICY_UNVERIFIED' }, 503);
       }
-      if (body.operation === 'restore'
-          && (body.backupVersion !== backup.version || body.backupSha256 !== backup.backupSha256)) {
-        return json({ error: 'Recovery preview changed; preview again' }, 409);
+      if (policyResult.error === 'policy_drift') {
+        return json({ error: 'POLICY_UNVERIFIED', diff: policyResult.policy }, 409);
       }
+      const policy = policyResult.policy;
 
       try {
         const supabase = await database(env, createClient);
+        const snapshotResult = await supabase.from('note_snapshots')
+          .select('snapshot_schema,note_id,owner_id,title,content,content_sha256,snapshot_version,captured_at,snapshot_sha256')
+          .eq('note_id', id).maybeSingle();
+        if (snapshotResult.error) return json({ error: 'Unable to read recovery snapshot' }, 500);
+        const snapshot = snapshotResult.data;
+        if (!snapshot) return json({ error: 'NO_SNAPSHOT' }, 404);
+        if (!isValidSnapshot(snapshot, id)) return json({ error: 'SNAPSHOT_INVALID' }, 503);
+        if (snapshot.owner_id !== auth.userId) return json({ error: 'Recovery snapshot not found' }, 404);
+
         const currentResult = await supabase.from('vault_notes')
           .select('id,owner_id,title,content').eq('id', id).maybeSingle();
         if (currentResult.error) return json({ error: 'Unable to verify recovery target' }, 500);
         const current = currentResult.data;
-        if (current && current.owner_id !== backup.note.ownerId) {
-          return json({ error: 'Recovery backup not found' }, 404);
-        }
-        const currentContentSha256 = current ? rowContentHash(current) : null;
+        if (current && current.owner_id !== auth.userId) return json({ error: 'Recovery target not found' }, 404);
 
-        if (body.operation === 'preview') {
-          const changes = current
-            ? ['title', 'content'].filter((field) => current[field] !== backup.note[field === 'content' ? 'body' : field])
-            : ['id', 'owner_id', 'title', 'content'];
+        const before = beforeState(current, snapshot);
+        const changes = changedFields(current, snapshot);
+        const version = {
+          policyRevision: policy.policyRevision,
+          policySha256: policy.policySha256,
+          snapshotVersion: snapshot.snapshot_version,
+          snapshotSha256: snapshot.snapshot_sha256.toLowerCase(),
+          capturedAt: snapshot.captured_at,
+        };
+
+        if (!input.confirm) {
           return json({
             operation: 'preview',
             id,
-            backupVersion: backup.version,
-            backupSha256: backup.backupSha256,
+            before,
             action: current ? 'update' : 'insert',
             changes,
-            currentContentSha256,
+            policyDiff: { missingRules: policy.missingRules, extraRules: policy.extraRules },
+            version,
             confirmationRequired: true,
           }, 200);
         }
 
-        if (body.currentContentSha256 !== currentContentSha256) {
-          return json({ error: 'Recovery preview changed; preview again' }, 409);
+        if (before === 'unchanged') {
+          return json({ operation: 'restored', id, restored: false, before, changes, version,
+            matches: { id: true, owner: true, contentSha256: true } }, 200);
         }
 
-        let restoredResult;
+        let mutation;
         if (current) {
-          restoredResult = await supabase.from('vault_notes')
-            .update({ title: backup.note.title, content: backup.note.body })
-            .eq('id', id).eq('owner_id', backup.note.ownerId)
+          mutation = await supabase.from('vault_notes')
+            .update({ title: snapshot.title, content: snapshot.content })
+            .eq('id', id).eq('owner_id', auth.userId)
             .eq('title', current.title).eq('content', current.content)
             .select('id,owner_id,title,content').maybeSingle();
         } else {
-          restoredResult = await supabase.from('vault_notes').insert({
+          mutation = await supabase.from('vault_notes').insert({
             id,
-            owner_id: backup.note.ownerId,
-            title: backup.note.title,
-            content: backup.note.body,
-          }).select('id,owner_id,title,content').single();
+            owner_id: auth.userId,
+            title: snapshot.title,
+            content: snapshot.content,
+          }).select('id,owner_id,title,content').maybeSingle();
         }
-        if (restoredResult.error) return json({ error: 'Unable to restore note' }, 409);
-        const restored = restoredResult.data;
-        if (!isRestoredRow(restored, backup)) {
-          if (restored && restored.id === backup.note.id
-              && restored.owner_id === backup.note.ownerId) {
-            const rollback = await rollbackMutation(supabase, current, backup);
-            if (rollback.error || !rollback.data) {
-              return json({ error: 'Restore verification failed; compensation was incomplete' }, 500);
-            }
-          }
-          return json({ error: 'Restored note verification failed' }, 500);
+        if (mutation.error || !mutation.data) return json({ error: 'Unable to restore note' }, 409);
+
+        const afterResult = await supabase.from('vault_notes')
+          .select('id,owner_id,title,content').eq('id', id).maybeSingle();
+        if (afterResult.error) return json({ error: 'Unable to verify restored note' }, 500);
+        const after = afterResult.data;
+        const matches = {
+          id: after?.id === snapshot.note_id,
+          owner: after?.owner_id === snapshot.owner_id,
+          contentSha256: Boolean(after) && currentContentHash(after) === snapshot.content_sha256.toLowerCase(),
+        };
+        if (!matches.id || !matches.owner || !matches.contentSha256) {
+          return json({ error: 'RESTORE_MISMATCH', matches }, 500);
         }
+
         return json({
           operation: 'restored',
-          id: restored.id,
-          backupVersion: backup.version,
-          ownerMatched: true,
-          contentSha256: backup.contentSha256,
+          id: after.id,
+          restored: true,
+          before,
+          changes,
+          version,
+          matches,
         }, current ? 200 : 201);
       } catch {
         return json({ error: 'Unable to restore note' }, 500);

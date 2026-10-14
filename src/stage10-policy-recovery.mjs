@@ -16,20 +16,46 @@ function digest(value) {
   return createHash('sha256').update(value).digest('hex');
 }
 
+function canonical(value) {
+  if (Array.isArray(value)) return value.map(canonical);
+  if (!isRecord(value)) return value;
+  return Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonical(value[key])]));
+}
+
+export function policySnapshotSha256(snapshot) {
+  if (!isRecord(snapshot)) return null;
+  const payload = {
+    schema: snapshot.schema,
+    snapshotId: snapshot.snapshotId,
+    source: snapshot.source,
+    scope: snapshot.scope,
+    safeRules: snapshot.safeRules,
+  };
+  return digest(JSON.stringify(canonical(payload)));
+}
+
+export function verifyPolicySnapshotIntegrity(snapshot) {
+  if (!isRecord(snapshot) || snapshot.schema !== SNAPSHOT_SCHEMA
+      || snapshot.snapshotId !== 'stage9-safe-policy'
+      || !isRecord(snapshot.source) || !isRecord(snapshot.scope)
+      || snapshot.scope.service !== 'notes' || snapshot.scope.property !== 'rules'
+      || !Array.isArray(snapshot.safeRules) || snapshot.safeRules.length === 0
+      || snapshot.safeRules.some((rule) => typeof rule !== 'string' || !RULE_ID.test(rule))
+      || typeof snapshot.sha256 !== 'string'
+      || !/^[0-9a-f]{64}$/iu.test(snapshot.sha256)
+      || policySnapshotSha256(snapshot) !== snapshot.sha256.toLowerCase()) {
+    fail('검증된 안전 정책 사본이 없거나 해시가 올바르지 않습니다. 복원을 중단합니다.');
+  }
+  return snapshot;
+}
+
 function sameStrings(left, right) {
   return Array.isArray(left) && Array.isArray(right)
     && left.length === right.length && left.every((value, index) => value === right[index]);
 }
 
 function validateSnapshot(snapshot, verifiedSource) {
-  if (!isRecord(snapshot) || snapshot.schema !== SNAPSHOT_SCHEMA
-      || snapshot.snapshotId !== 'stage9-safe-policy'
-      || !isRecord(snapshot.source) || !isRecord(snapshot.scope)
-      || snapshot.scope.service !== 'notes' || snapshot.scope.property !== 'rules'
-      || !Array.isArray(snapshot.safeRules) || snapshot.safeRules.length === 0
-      || snapshot.safeRules.some((rule) => typeof rule !== 'string' || !RULE_ID.test(rule))) {
-    fail('검증된 안전 정책 사본이 없거나 형식이 올바르지 않습니다. 복원을 중단합니다.');
-  }
+  verifyPolicySnapshotIntegrity(snapshot);
   if (!isRecord(verifiedSource)
       || snapshot.source.commit !== verifiedSource.commit
       || snapshot.source.path !== verifiedSource.path
@@ -49,16 +75,6 @@ function validateTestPolicy(policy) {
   }
 }
 
-function confirmationFor(snapshot, currentPolicy) {
-  return digest(JSON.stringify({
-    snapshotId: snapshot.snapshotId,
-    sourceCommit: snapshot.source.commit,
-    sourceBlob: snapshot.source.gitBlob,
-    currentPolicy: digest(JSON.stringify(currentPolicy)),
-    target: 'services.notes.rules',
-  }));
-}
-
 export function createPolicyRestorePreview({ snapshot, currentPolicy, verifiedSource }) {
   validateSnapshot(snapshot, verifiedSource);
   validateTestPolicy(currentPolicy);
@@ -67,20 +83,19 @@ export function createPolicyRestorePreview({ snapshot, currentPolicy, verifiedSo
   return {
     scope: 'services.notes.rules',
     sourceCommit: snapshot.source.commit,
+    policyRevision: snapshot.source.commit,
+    policySha256: snapshot.sha256,
     currentRules: [...currentRules],
     safeRules: [...safeRules],
     addedRules: safeRules.filter((rule) => !currentRules.includes(rule)).sort(),
     removedRules: currentRules.filter((rule) => !safeRules.includes(rule)).sort(),
-    confirmationToken: confirmationFor(snapshot, currentPolicy),
   };
 }
 
 export function restoreTestPolicy({ snapshot, currentPolicy, verifiedSource,
-  confirmationToken, at = new Date().toISOString() }) {
+  confirmed = false, at = new Date().toISOString() }) {
+  if (confirmed !== true) fail('미리보기 후 --apply를 지정해야 시험 정책을 복원합니다.');
   const preview = createPolicyRestorePreview({ snapshot, currentPolicy, verifiedSource });
-  if (typeof confirmationToken !== 'string' || confirmationToken !== preview.confirmationToken) {
-    fail('미리보기 확인값이 일치하지 않습니다. 정책은 변경하지 않았습니다.');
-  }
   if (!Number.isFinite(Date.parse(at))) fail('복원 감사 시각이 올바르지 않습니다.');
 
   const restored = structuredClone(currentPolicy);
