@@ -87,9 +87,10 @@ export function createLoginVerifier({ config, supabaseSecretKey, judgeKeySet,
         if (error || !claims || claims.iss !== bound.studentIssuer
             || claims.aud !== bound.studentAudience
             || claims.role !== 'authenticated' || !UUID.test(claims.sub ?? '')
+            || !UUID.test(claims.session_id ?? '')
             || !Number.isSafeInteger(claims.exp)
             || claims.exp <= Math.floor(Date.now() / 1000)) return null;
-        return Object.freeze({ kind: 'student', userId: claims.sub });
+        return Object.freeze({ kind: 'student', userId: claims.sub, sessionId: claims.session_id });
       } catch { return null; }
     }
     return null;

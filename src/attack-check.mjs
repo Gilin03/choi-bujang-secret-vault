@@ -60,17 +60,15 @@ export async function runAttackChecks(config) {
     ? `비로그인 POST /api/notes HTTP ${writeResponse.status}${writeResponse.status === 401 ? ', 인증 거부 확인' : ', 인증 없이 거부되지 않음'}`
     : '비로그인 POST /api/notes 응답 없음';
 
-  const deviceStatusResponse = await request('/api/device/status');
-  const deviceStatusObserved = deviceStatusResponse
-    ? `비로그인 GET /api/device/status HTTP ${deviceStatusResponse.status}${deviceStatusResponse.status === 401 ? ', 인증 거부 확인' : ', 인증 없이 거부되지 않음'}`
-    : '비로그인 GET /api/device/status 응답 없음';
+  const sessionStatusResponse = await request('/api/session-approval/status');
+  const sessionStatusObserved = sessionStatusResponse
+    ? `비로그인 GET /api/session-approval/status HTTP ${sessionStatusResponse.status}${sessionStatusResponse.status === 401 ? ', 인증 거부 확인' : ', 인증 없이 거부되지 않음'}`
+    : '비로그인 GET /api/session-approval/status 응답 없음';
 
-  const deviceChallengeResponse = await request('/api/device/challenge', 'POST', {
-    method: 'GET', path: '/api/my/notes',
-  });
-  const deviceChallengeObserved = deviceChallengeResponse
-    ? `비로그인 POST /api/device/challenge HTTP ${deviceChallengeResponse.status}${deviceChallengeResponse.status === 401 ? ', 인증 거부 확인' : ', 인증 없이 거부되지 않음'}`
-    : '비로그인 POST /api/device/challenge 응답 없음';
+  const sessionRequestResponse = await request('/api/session-approval/request', 'POST');
+  const sessionRequestObserved = sessionRequestResponse
+    ? `비로그인 POST /api/session-approval/request HTTP ${sessionRequestResponse.status}${sessionRequestResponse.status === 401 ? ', 인증 거부 확인' : ', 인증 없이 거부되지 않음'}`
+    : '비로그인 POST /api/session-approval/request 응답 없음';
 
   return [
     {
@@ -89,14 +87,14 @@ export async function runAttackChecks(config) {
       observed: writeObserved,
     },
     {
-      attackId: 'anonymous_device_status',
-      expected: '비로그인 GET /api/device/status는 401로 거부됨',
-      observed: deviceStatusObserved,
+      attackId: 'anonymous_session_approval_status',
+      expected: '비로그인 GET /api/session-approval/status는 401로 거부됨',
+      observed: sessionStatusObserved,
     },
     {
-      attackId: 'anonymous_device_challenge',
-      expected: '비로그인 POST /api/device/challenge는 401로 거부됨',
-      observed: deviceChallengeObserved,
+      attackId: 'anonymous_session_approval_request',
+      expected: '비로그인 POST /api/session-approval/request는 401로 거부됨',
+      observed: sessionRequestObserved,
     },
   ];
 }

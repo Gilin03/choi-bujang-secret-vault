@@ -1,6 +1,6 @@
 # BYTE BACK 방어전 자료실 — 11단계
 
-이 저장소는 Supabase Auth 로그인과 서버 측 사용자별 소유권 검사를 유지하면서 메모 자료 요청을 Vercel 서버 함수로 모으고, 엔진의 가상 접속·자원 구역 판정, 가상 사건 탐지, 검증된 정책·메모 복구 연습, 설치형 화면과 Passkey 기기 승인 요청을 추가한 11단계 학습용 자료실입니다. 메모 데이터는 가상 자료만 사용합니다.
+이 저장소는 Supabase Auth 로그인과 서버 측 사용자별 소유권 검사를 유지하면서 메모 자료 요청을 Vercel 서버 함수로 모으고, 엔진의 가상 접속·자원 구역 판정, 가상 사건 탐지, 검증된 정책·메모 복구 연습, 설치형 화면과 로그인 세션 승인 흐름을 추가한 11단계 학습용 자료실입니다. 세션 승인은 학습용 서버 승인으로 물리 기기 증명을 뜻하지 않습니다. 메모 데이터는 가상 자료만 사용합니다.
 
 이 프로젝트는 1단계에서 학생 본인의 GitHub 저장소와 Vercel 배포를 만든 시작 틀에서 이어집니다. 새로 시작하는 학생은 GitHub 계정을 만든 뒤 방어전 1단계 카드의 **Deploy** 흐름에서 본인 계정의 공개 저장소와 Vercel 프로젝트를 만들고, 배포 주소를 카드에 제출합니다. 이 자료실은 그 같은 저장소와 배포를 단계별로 보강합니다.
 
@@ -13,6 +13,7 @@
 - 화면은 명시적 자기 목록 경로 `GET /api/my/notes`를 사용합니다. 이 경로는 검증한 로그인 사용자 ID로 DB를 필터하고 응답 직전 소유자를 다시 대조합니다. 기존 `GET /api/notes`도 API 호환성을 위해 유지하지만 판정기 허용 경로에는 없습니다. `POST /api/notes`는 메모를 추가하고, `GET`, `PUT`, `DELETE /api/notes/:id`는 검증한 사용자 ID와 저장된 `owner_id`를 대조한 뒤 처리합니다. 수정·삭제는 변경 전에 소유자를 확인하고 변경 뒤에도 소유자를 확인합니다. 다른 사용자 소유 ID와 없는 ID는 모두 `404`입니다.
 - 비로그인 API 요청은 `401`로 거부됩니다. A/B 교차 계정의 단건 읽기·수정·삭제는 테스트에서 `404`로 거부되고, 본인 메모 CRUD는 허용됩니다.
 - `SUPABASE_SECRET_KEY`는 자료 CRUD용 Vercel 서버 함수에서만 사용합니다. Auth 프록시는 별도 `SUPABASE_PUBLISHABLE_KEY` 환경변수를 사용합니다. 실제 키 값은 두 환경변수 모두 브라우저·응답·로그·GitHub·제출 묶음에 넣지 않습니다.
+- 서버는 Supabase `getClaims(accessToken)` 검증 결과에서 사용자 ID와 UUID 형식 `session_id`를 가져옵니다. 토큰의 브라우저 파싱 결과는 신뢰하지 않습니다. `session_id`가 없거나 형식이 맞지 않으면 승인 조회와 보호 자료 접근을 거부합니다.
 - `/data.json`과 `public/data.json`은 없습니다. 옛 공개 Git 커밋과 옛 배포 이력은 남으므로, 과거 노출이 지워졌다고 보지 마세요.
 - 6단계 판정기는 계약의 `deviceRegistered` 값이 `true`일 때만 허용하고, `false` 또는 누락은 `device_not_registered`로 거부합니다. `npm run decider:test`는 등록·미등록·상태 누락 가상 요청을 확인하는 로컬 연습이며 실제 기기 등록이나 심판 판정의 증거가 아닙니다.
 - 7단계 판정기는 가상 접속 신호의 출처와 모양을 검사해 복합 이상 사건에 `step_up`을 요구합니다. 현재 실제 계약은 위치·네트워크 신호와 재로그인 확인 기능을 제공하지 않으므로 `source: none` 요청에는 신호를 꾸며 넣지 않고 정상 기기·허용 경로 규칙만 적용합니다. 지역 하나만으로 차단하지 않습니다.
@@ -24,28 +25,28 @@
 ## 11단계 설치형 화면과 기기 승인
 
 - `/manifest.webmanifest`는 `BYTE BACK 자료실` 이름, 독립 실행 표시, 아이콘, 오프라인 안내를 제공합니다. 화면에는 브라우저/설치 앱 실행 상태를 보여 주며, 설치 표시는 기기 승인으로 취급하지 않습니다. 오프라인 화면에서는 자료를 보여 주거나 저장하지 않습니다.
-- 로그인 뒤 서버가 등록 상태를 확인합니다. 처음에는 **기기 승인 요청**을 눌러 플랫폼 Passkey를 등록합니다. 서버는 WebAuthn challenge·출처·RP ID를 확인한 공개 키를 `pending`으로 저장합니다. 이 단계만으로는 자료 API가 열리지 않습니다.
-- 운영자는 Supabase **SQL Editor**에서 [`stage11-device-approval.sql`](supabase/stage11-device-approval.sql)을 적용하고, 검토한 대기 행만 승인합니다. 상태 변경 예시는 아래와 같습니다. 행 ID와 `owner_id`는 승인 대상 행과 Auth 사용자 레코드에서 직접 대조하세요.
+- 로그인 뒤 서버가 검증한 현재 Supabase 로그인 세션의 승인 상태를 확인합니다. 계정 전체가 아니라 UUID `session_id`별로 저장하므로 새 로그인 세션은 승인을 이어받지 않습니다. 브라우저 localStorage/sessionStorage에 승인 토큰이나 기기 키를 저장하지 않습니다.
+- **기기 승인 요청**은 현재 검증된 세션과 사용자 ID로 `pending` 행만 만듭니다. 요청 본문에서 온 세션·사용자·상태는 무시합니다. 세션 ID 검증이나 DB 조회에 실패하면 보호 자료를 차단합니다.
+- DB 구조는 [`stage11-session-approval.sql`](supabase/stage11-session-approval.sql)을 사용합니다. 이 파일은 새 `vault_session_approvals` 테이블만 추가하며 기존 단계 테이블을 변경·삭제하지 않습니다. Supabase **SQL Editor**에서 마이그레이션을 적용하고, 요청의 세션과 Auth 사용자를 확인한 뒤 서버 운영자가 해당 대기 행을 승인합니다. 아래 조회 결과는 운영 콘솔 안에서 검토하고 식별값을 공개하지 마세요.
 
   ```sql
-  select id, owner_id, status, created_at
-  from public.vault_registered_devices
+  select session_id, owner_id, created_at
+  from public.vault_session_approvals
   where status = 'pending'
   order by created_at;
   ```
 
   ```sql
-  update public.vault_registered_devices
+  update public.vault_session_approvals
   set status = 'approved', approved_at = now()
-  where id = '<검토한 대기 행 UUID>'
+  where session_id = '<검토한 Supabase 세션 UUID>'
     and owner_id = '<대조한 Auth 사용자 UUID>'
     and status = 'pending';
   ```
 
-- 승인 후 화면에서 **승인 상태 다시 확인**을 누르면 서버가 승인된 Passkey 서명을 검증합니다. 이후 자료 API도 요청마다 새 일회성 challenge, 로그인 사용자, 승인된 credential 서명과 요청 경로를 확인합니다. 누락·잘못된 서명, 다른 사용자 credential, 재사용 challenge는 자료 처리기 앞에서 거부됩니다. 기존 메모 소유권과 강사 권한 검사는 그대로 이어집니다.
-- 개인키는 플랫폼 인증기에 남습니다. Supabase Auth 세션도 페이지 메모리에서만 유지되어 새로고침하면 다시 로그인합니다. 서명 값과 challenge를 브라우저 저장소에 쓰지 않습니다.
-- 이 연습의 `attestation: none` Passkey는 승인된 자격 증명의 소유 확인이지, 관리형 노트북·설치된 앱·특정 물리 기기를 증명하지 않습니다. 동기화 Passkey가 다른 기기에서 사용될 수 있으므로 실제 기기 관리 증거라고 표현하지 마세요. 승인 전 자료 미표시와 요청별 서명 검증은 `npm run test:stage11`의 가상 credential 검사로 확인합니다.
-- `npm run test:stage11`은 테스트용 ECDSA credential fixture만 사용합니다. 실제 계정, 실제 Passkey, 실제 심판 판정의 증거가 아닙니다. 웹에서 직접 로그인·Passkey 승인·메모 정상/거부 동작을 확인하세요.
+- 화면은 서버 상태가 `approved`인 같은 세션에서만 기존 자료실을 표시합니다. 각 보호 API도 검증된 사용자와 세션 ID를 함께 조회해 `approved`인지 확인한 다음 기존 소유권·강사 권한 검사를 수행합니다. 브라우저 승인 버튼은 요청만 만들며 승인 권한은 주지 않습니다.
+- Supabase Auth 세션은 페이지 메모리에서만 유지됩니다. 설치형 웹앱 여부, 계정 ID, 버튼 클릭만으로 승인하지 않으며 이 흐름은 실제 물리 기기 증명을 제공하지 않습니다.
+- `npm run test:stage11`은 검증된 세션 전달, 누락·잘못된 ID 거부, pending 저장, 새 세션 비상속, 승인 세션만의 API 접근을 가상 DB로 확인합니다. 실제 Production 계정 흐름은 별도 브라우저 확인입니다.
 
 ## 7단계 이상 접속 추가 확인
 

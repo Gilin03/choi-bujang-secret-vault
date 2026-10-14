@@ -1,4 +1,4 @@
 import { createAnnouncementItemHandler } from '../../src/announcements-api.mjs';
-import { createDeviceProtectedHandler } from '../../src/device-approval.mjs';
+import { createSessionProtectedHandler } from '../../src/session-approval.mjs';
 
-export default createDeviceProtectedHandler(createAnnouncementItemHandler());
+export default createSessionProtectedHandler(createAnnouncementItemHandler());

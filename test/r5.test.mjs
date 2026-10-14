@@ -66,8 +66,8 @@ test('stage 4 attack checks verify anonymous API access is denied and static JSO
       if (requestUrl.pathname === '/api/notes') {
         return Response.json({ error: 'Authentication required' }, { status: 401 });
       }
-      if (requestUrl.pathname === '/api/device/status'
-          || requestUrl.pathname === '/api/device/challenge') {
+      if (requestUrl.pathname === '/api/session-approval/status'
+          || requestUrl.pathname === '/api/session-approval/request') {
         return Response.json({ error: 'Authentication required' }, { status: 401 });
       }
       return new Response('', { status: 404 });
@@ -98,13 +98,13 @@ test('stage 4 attack checks verify anonymous API access is denied and static JSO
         authorization: undefined,
       },
       {
-        url: 'https://student-defense.vercel.app/api/device/status',
+        url: 'https://student-defense.vercel.app/api/session-approval/status',
         method: 'GET',
         redirect: 'error',
         authorization: undefined,
       },
       {
-        url: 'https://student-defense.vercel.app/api/device/challenge',
+        url: 'https://student-defense.vercel.app/api/session-approval/request',
         method: 'POST',
         redirect: 'error',
         authorization: undefined,
@@ -114,8 +114,8 @@ test('stage 4 attack checks verify anonymous API access is denied and static JSO
     assert.equal(results[0].expected, '비로그인 GET /api/notes는 401로 거부됨');
     assert.equal(results[1].expected, '정적 /data.json에서 메모 본문을 찾을 수 없음');
     assert.equal(results[2].expected, '비로그인 POST /api/notes는 401로 거부됨');
-    assert.equal(results[3].expected, '비로그인 GET /api/device/status는 401로 거부됨');
-    assert.equal(results[4].expected, '비로그인 POST /api/device/challenge는 401로 거부됨');
+    assert.equal(results[3].expected, '비로그인 GET /api/session-approval/status는 401로 거부됨');
+    assert.equal(results[4].expected, '비로그인 POST /api/session-approval/request는 401로 거부됨');
     assert.match(results[0].observed, /HTTP 401.*인증 거부/u);
     assert.match(results[1].observed, /HTTP 404/u);
     assert.match(results[2].observed, /HTTP 401/u);

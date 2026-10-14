@@ -2,7 +2,7 @@
   "id": "/",
   "name": "BYTE BACK 자료실",
   "short_name": "자료실",
-  "description": "승인된 Passkey로 여는 BYTE BACK 개인 자료실. 오프라인에서는 보호 자료를 열 수 없습니다.",
+  "description": "서버가 승인한 로그인 세션으로 여는 BYTE BACK 개인 자료실. 오프라인에서는 보호 자료를 열 수 없습니다.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

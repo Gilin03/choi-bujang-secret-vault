@@ -22,26 +22,27 @@ test('installable app manifest names the vault and explains offline limits', () 
   }
 });
 
-test('the page separates installed state from server-approved passkey status', () => {
+test('the page separates installed state from server-approved login-session status', () => {
   const page = read('../public/index.html');
   assert.match(page, /manifest\.webmanifest/u);
   assert.match(page, /앱 설치 상태/u);
-  assert.match(page, /설치 표시.*기기 승인/u);
-  assert.match(page, /api\/device\/status/u);
-  assert.match(page, /api\/device\/register\/options/u);
-  assert.match(page, /api\/device\/status\/verify/u);
+  assert.match(page, /설치 표시.*승인/u);
+  assert.match(page, /api\/session-approval\/status/u);
+  assert.match(page, /api\/session-approval\/request/u);
+  assert.match(page, /로그인 세션마다 별도로 승인이 필요/u);
   assert.match(page, /오프라인/u);
   assert.match(page, /persistSession:\s*false/u);
   assert.doesNotMatch(page, /\b(?:localStorage|sessionStorage|indexedDB)\b/u);
+  assert.doesNotMatch(page, /navigator\.credentials|webauthn|passkey/i);
 });
 
-test('device endpoints share one function and the project stays under Hobby function limit', () => {
+test('session approval endpoints share one function and the project stays under Hobby function limit', () => {
   const apiFiles = readdirSync(new URL('../api/', import.meta.url), { recursive: true })
     .filter(path => /\.(?:mjs|cjs|js|ts)$/iu.test(path));
-  const deviceFiles = apiFiles
+  const approvalFiles = apiFiles
     .map(path => path.replaceAll('\\', '/'))
-    .filter(path => path.startsWith('device/'));
+    .filter(path => path.startsWith('session-approval/'));
 
-  assert.deepEqual(deviceFiles, ['device/[...path].mjs']);
+  assert.deepEqual(approvalFiles, ['session-approval/[...path].mjs']);
   assert.ok(apiFiles.length <= 12, `found ${apiFiles.length} serverless function entrypoints`);
 });

@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#101a28">
-  <meta name="description" content="승인된 Passkey로 여는 BYTE BACK 개인 자료실. 오프라인에서는 보호 자료를 열 수 없습니다.">
+  <meta name="description" content="서버가 승인한 로그인 세션으로 여는 BYTE BACK 개인 자료실. 오프라인에서는 보호 자료를 열 수 없습니다.">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/vault-icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="/vault-icon-192.png">
@@ -50,15 +50,15 @@
   <main>
     <div class="eyebrow">BYTE BACK · 개인 자료실</div>
     <h1>나만의 자료실</h1>
-    <p class="intro">서버가 승인한 Passkey로 확인한 뒤 기존 자료실을 엽니다. 실제 개인정보나 운영 자료는 입력하지 마세요.</p>
+    <p class="intro">서버가 승인한 로그인 세션에서 기존 자료실을 엽니다. 실제 개인정보나 운영 자료는 입력하지 마세요.</p>
 
     <section class="panel" aria-labelledby="app-state-heading">
       <h2 id="app-state-heading">앱 설치 상태</h2>
       <p class="app-state"><strong id="install-status" aria-live="polite">브라우저에서 실행 중</strong><span>설치 표시만으로 기기 승인이 된 것은 아닙니다.</span></p>
-      <p class="fine-print">오프라인에서는 보호 자료를 표시하지 않습니다. 연결을 복구한 뒤 로그인과 기기 확인을 다시 진행하세요.</p>
+      <p class="fine-print">오프라인에서는 보호 자료를 표시하지 않습니다. 연결을 복구한 뒤 로그인 세션 승인을 다시 확인하세요.</p>
     </section>
 
-    <div class="notice">새 Passkey는 승인 요청으로만 등록됩니다. 운영자가 서버에서 승인하기 전에는 자료를 읽거나 바꿀 수 없습니다.</div>
+    <div class="notice">로그인 세션마다 별도로 승인이 필요합니다. 새로 로그인한 세션은 기존 승인 상태를 이어받지 않습니다.</div>
 
     <section id="login-panel" class="panel" aria-labelledby="login-heading">
       <h2 id="login-heading">로그인</h2>
@@ -82,15 +82,15 @@
       <p id="app-error" class="error" role="alert" aria-live="polite"></p>
     </section>
 
-    <section id="device-panel" class="panel" aria-labelledby="device-heading" hidden>
-      <h2 id="device-heading">기기 승인</h2>
-      <p id="device-status" role="status" aria-live="polite">서버 승인 상태를 확인합니다.</p>
-      <p class="fine-print">Passkey 개인키는 기기의 플랫폼 인증기에 남고 브라우저 저장소로 복사되지 않습니다. 승인 요청 후에는 서버 승인이 끝날 때까지 자료를 열 수 없습니다.</p>
+    <section id="session-approval-panel" class="panel" aria-labelledby="session-approval-heading" hidden>
+      <h2 id="session-approval-heading">로그인 세션 승인</h2>
+      <p id="session-approval-status" role="status" aria-live="polite">서버 승인 상태를 확인합니다.</p>
+      <p class="fine-print">승인 요청은 pending으로 저장됩니다. 운영자가 서버에서 승인하기 전에는 자료를 열 수 없습니다. 이 흐름은 물리 기기를 증명하지 않습니다.</p>
       <div class="actions">
-        <button id="device-request" type="button" hidden>기기 승인 요청</button>
-        <button id="device-retry" class="secondary" type="button" hidden>승인 상태 다시 확인</button>
+        <button id="session-approval-request" type="button" hidden>기기 승인 요청</button>
+        <button id="session-approval-retry" class="secondary" type="button" hidden>승인 상태 다시 확인</button>
       </div>
-      <p id="device-error" class="error" role="alert" aria-live="polite"></p>
+      <p id="session-approval-error" class="error" role="alert" aria-live="polite"></p>
     </section>
 
     <section id="workspace" hidden>
@@ -140,11 +140,11 @@
     const loginError = document.querySelector('#login-error');
     const accountLabel = document.querySelector('#account-label');
     const appError = document.querySelector('#app-error');
-    const devicePanel = document.querySelector('#device-panel');
-    const deviceStatus = document.querySelector('#device-status');
-    const deviceError = document.querySelector('#device-error');
-    const deviceRequest = document.querySelector('#device-request');
-    const deviceRetry = document.querySelector('#device-retry');
+    const approvalPanel = document.querySelector('#session-approval-panel');
+    const approvalStatus = document.querySelector('#session-approval-status');
+    const approvalError = document.querySelector('#session-approval-error');
+    const approvalRequest = document.querySelector('#session-approval-request');
+    const approvalRetry = document.querySelector('#session-approval-retry');
     const installStatus = document.querySelector('#install-status');
     const sampleList = document.querySelector('#samples');
     const noteList = document.querySelector('#my-notes');
@@ -163,79 +163,13 @@
       installStatus.textContent = installed ? '설치된 웹앱에서 실행 중' : '브라우저에서 실행 중';
     }
 
-    function base64urlBytes(value) {
-      const base64 = value.replaceAll('-', '+').replaceAll('_', '/');
-      return Uint8Array.from(atob(base64 + '='.repeat((4 - (base64.length % 4)) % 4)),
-        character => character.charCodeAt(0));
-    }
-
-    function base64urlBuffer(value) {
-      if (!value) return null;
-      const bytes = new Uint8Array(value);
-      let binary = '';
-      for (let index = 0; index < bytes.length; index += 1) binary += String.fromCharCode(bytes[index]);
-      return btoa(binary).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/u, '');
-    }
-
-    function credentialOptions(options) {
-      return {
-        ...options,
-        challenge: base64urlBytes(options.challenge),
-        ...(options.user ? { user: { ...options.user, id: base64urlBytes(options.user.id) } } : {}),
-        ...(options.allowCredentials ? {
-          allowCredentials: options.allowCredentials.map(credential => ({
-            ...credential, id: base64urlBytes(credential.id),
-          })),
-        } : {}),
-        ...(options.excludeCredentials ? {
-          excludeCredentials: options.excludeCredentials.map(credential => ({
-            ...credential, id: base64urlBytes(credential.id),
-          })),
-        } : {}),
-      };
-    }
-
-    function serializeCredential(credential) {
-      const response = credential.response;
-      const serialized = {
-        id: credential.id,
-        rawId: base64urlBuffer(credential.rawId),
-        type: credential.type,
-        response: {
-          clientDataJSON: base64urlBuffer(response.clientDataJSON),
-        },
-      };
-      if (response.attestationObject) {
-        serialized.response.attestationObject = base64urlBuffer(response.attestationObject);
-      }
-      if (response.authenticatorData) {
-        serialized.response.authenticatorData = base64urlBuffer(response.authenticatorData);
-        serialized.response.signature = base64urlBuffer(response.signature);
-        serialized.response.userHandle = base64urlBuffer(response.userHandle);
-      }
-      return serialized;
-    }
-
     async function authenticatedFetch(path, options = {}) {
       const sessionResult = await supabase.auth.getSession();
       const token = sessionResult.data.session?.access_token;
       if (!token) throw new Error('로그인 세션이 없습니다. 다시 로그인해 주세요.');
       const method = (options.method || 'GET').toUpperCase();
-      const challengeResponse = await fetch('/api/device/challenge', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ method, path: new URL(path, location.href).pathname }),
-        cache: 'no-store',
-      });
-      const challenge = await challengeResponse.json().catch(() => ({}));
-      if (!challengeResponse.ok || !challenge.publicKey) {
-        throw new Error(challenge.error || '승인된 기기에서만 자료를 열 수 있습니다.');
-      }
-      const assertion = await navigator.credentials.get({ publicKey: credentialOptions(challenge.publicKey) });
-      if (!assertion) throw new Error('기기 확인이 취소되었습니다.');
       const headers = new Headers(options.headers || {});
       headers.set('Authorization', `Bearer ${token}`);
-      headers.set('X-Aleph-Device-Assertion', JSON.stringify(serializeCredential(assertion)));
       if (options.body) headers.set('Content-Type', 'application/json');
       const response = await fetch(path, { ...options, method, headers, cache: 'no-store' });
       if (response.status === 204) return null;
@@ -303,82 +237,52 @@
       renderRows(noteList, result.notes || [], true);
     }
 
-    function deviceRequestHeaders(token) {
-      return { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
-    }
-
-    async function verifyCurrentDevice(session) {
+    async function verifyCurrentSessionApproval(session) {
       clearProtectedContent();
-      devicePanel.hidden = false;
-      deviceRequest.hidden = true;
-      deviceRetry.hidden = true;
-      showMessage(deviceError);
-      showMessage(deviceStatus, '서버 승인 상태를 확인합니다.');
-      const statusResponse = await fetch('/api/device/status', {
+      approvalPanel.hidden = false;
+      approvalRequest.hidden = true;
+      approvalRetry.hidden = true;
+      showMessage(approvalError);
+      showMessage(approvalStatus, '서버 승인 상태를 확인합니다.');
+      const statusResponse = await fetch('/api/session-approval/status', {
         headers: { Authorization: `Bearer ${session.access_token}` }, cache: 'no-store',
       });
       const status = await statusResponse.json().catch(() => ({}));
-      if (!statusResponse.ok) throw new Error(status.error || '기기 승인 상태를 확인할 수 없습니다.');
+      if (currentSession !== session.access_token) return false;
+      if (!statusResponse.ok) throw new Error(status.error || '세션 승인 상태를 확인할 수 없습니다.');
       if (status.status === 'not_registered') {
-        showMessage(deviceStatus, '이 인증기는 아직 승인 요청을 하지 않았습니다.');
-        deviceRequest.hidden = false;
+        showMessage(approvalStatus, '현재 로그인 세션은 아직 승인 요청을 하지 않았습니다.');
+        approvalRequest.hidden = false;
         return false;
       }
       if (status.status === 'pending') {
-        showMessage(deviceStatus, '승인 대기 중입니다. 서버 승인이 끝나기 전에는 자료를 열 수 없습니다.');
-        deviceRetry.hidden = false;
+        showMessage(approvalStatus, '승인 대기 중입니다. 서버 승인이 끝나기 전에는 자료를 열 수 없습니다.');
+        approvalRetry.hidden = false;
         return false;
       }
-      if (status.status !== 'verification_required' || !status.publicKey) {
+      if (status.status !== 'approved') {
         throw new Error('서버 승인 상태를 확인할 수 없습니다.');
       }
-      if (!navigator.credentials?.get) throw new Error('이 브라우저는 Passkey 기기 확인을 지원하지 않습니다.');
-      showMessage(deviceStatus, '승인된 Passkey로 기기를 확인하세요.');
-      const assertion = await navigator.credentials.get({ publicKey: credentialOptions(status.publicKey) });
-      if (!assertion) throw new Error('기기 확인이 취소되었습니다.');
-      const verification = await fetch('/api/device/status/verify', {
-        method: 'POST',
-        headers: deviceRequestHeaders(session.access_token),
-        body: JSON.stringify({ challenge: status.challenge, credential: serializeCredential(assertion) }),
-        cache: 'no-store',
-      });
-      const result = await verification.json().catch(() => ({}));
-      if (!verification.ok || result.status !== 'approved') {
-        throw new Error(result.error || '서버가 이 기기를 승인된 기기로 확인하지 못했습니다.');
-      }
-      devicePanel.hidden = true;
+      approvalPanel.hidden = true;
       workspace.hidden = false;
       await loadNotes();
+      if (currentSession !== session.access_token) clearProtectedContent();
       return true;
     }
 
-    async function requestDeviceApproval() {
+    async function requestSessionApproval() {
       const sessionResult = await supabase.auth.getSession();
       const session = sessionResult.data.session;
       if (!session?.access_token) throw new Error('로그인 세션이 없습니다. 다시 로그인해 주세요.');
-      if (!navigator.credentials?.create) throw new Error('이 브라우저는 Passkey 등록을 지원하지 않습니다.');
-      const start = await fetch('/api/device/register/options', {
+      const response = await fetch('/api/session-approval/request', {
         method: 'POST',
-        headers: deviceRequestHeaders(session.access_token), body: '{}', cache: 'no-store',
-      });
-      const options = await start.json().catch(() => ({}));
-      if (!start.ok || !options.publicKey) throw new Error(options.error || '승인 요청을 시작할 수 없습니다.');
-      const credential = await navigator.credentials.create({ publicKey: credentialOptions(options.publicKey) });
-      if (!credential) throw new Error('Passkey 등록이 취소되었습니다.');
-      const response = await fetch('/api/device/register', {
-        method: 'POST',
-        headers: deviceRequestHeaders(session.access_token),
-        body: JSON.stringify({ credential: serializeCredential(credential) }),
-        cache: 'no-store',
+        headers: { Authorization: `Bearer ${session.access_token}` }, cache: 'no-store',
       });
       const result = await response.json().catch(() => ({}));
-      if (!response.ok || result.status !== 'pending') {
-        throw new Error(result.error || '기기 승인 요청을 저장하지 못했습니다.');
+      if (!response.ok || !['pending', 'approved'].includes(result.status)) {
+        throw new Error(result.error || '세션 승인 요청을 저장하지 못했습니다.');
       }
-      showMessage(deviceError);
-      showMessage(deviceStatus, '승인 요청을 보냈습니다. 운영자가 서버에서 승인하기 전에는 자료를 열 수 없습니다.');
-      deviceRequest.hidden = true;
-      deviceRetry.hidden = false;
+      await verifyCurrentSessionApproval(session);
     }
 
     function resetEditor() {
@@ -419,25 +323,25 @@
       loginPanel.hidden = Boolean(session);
       accountPanel.hidden = !session;
       workspace.hidden = true;
-      devicePanel.hidden = !session;
+      approvalPanel.hidden = !session;
       showMessage(loginError);
       showMessage(appError);
       if (!session) {
-        devicePanel.hidden = true;
-        deviceRequest.hidden = true;
-        deviceRetry.hidden = true;
+        approvalPanel.hidden = true;
+        approvalRequest.hidden = true;
+        approvalRetry.hidden = true;
         accountLabel.textContent = '';
         clearProtectedContent();
         return;
       }
       accountLabel.textContent = `로그인됨 · ${session.user?.email || '계정'}`;
       try {
-        await verifyCurrentDevice(session);
+        await verifyCurrentSessionApproval(session);
       } catch (error) {
         clearProtectedContent();
-        showMessage(deviceStatus, '서버에서 승인된 기기 확인이 필요합니다.');
-        showMessage(deviceError, error.message);
-        deviceRetry.hidden = false;
+        showMessage(approvalStatus, '서버에서 현재 로그인 세션의 승인이 필요합니다.');
+        showMessage(approvalError, error.message);
+        approvalRetry.hidden = false;
       }
     }
 
@@ -476,24 +380,24 @@
     });
 
     cancelEdit.addEventListener('click', resetEditor);
-    deviceRequest.addEventListener('click', async () => {
-      deviceRequest.disabled = true;
-      showMessage(deviceError);
+    approvalRequest.addEventListener('click', async () => {
+      approvalRequest.disabled = true;
+      showMessage(approvalError);
       try {
-        await requestDeviceApproval();
+        await requestSessionApproval();
       } catch (error) {
-        showMessage(deviceError, error.message || '기기 승인 요청에 실패했습니다.');
+        showMessage(approvalError, error.message || '세션 승인 요청에 실패했습니다.');
       } finally {
-        deviceRequest.disabled = false;
+        approvalRequest.disabled = false;
       }
     });
-    deviceRetry.addEventListener('click', async () => {
+    approvalRetry.addEventListener('click', async () => {
       const sessionResult = await supabase.auth.getSession();
       try {
-        if (sessionResult.data.session) await verifyCurrentDevice(sessionResult.data.session);
+        if (sessionResult.data.session) await verifyCurrentSessionApproval(sessionResult.data.session);
       } catch (error) {
         clearProtectedContent();
-        showMessage(deviceError, error.message || '기기 승인을 다시 확인하지 못했습니다.');
+        showMessage(approvalError, error.message || '세션 승인을 다시 확인하지 못했습니다.');
       }
     });
     noteForm.addEventListener('submit', async event => {
@@ -519,7 +423,7 @@
     });
 
     supabase.auth.onAuthStateChange((_event, session) => {
-      window.setTimeout(() => { void showSession(session); }, 0);
+      void showSession(session);
     });
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
     updateInstallStatus();

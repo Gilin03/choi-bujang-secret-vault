@@ -1,4 +1,4 @@
 import { createMyNotesHandler } from '../../src/notes-api.mjs';
-import { createDeviceProtectedHandler } from '../../src/device-approval.mjs';
+import { createSessionProtectedHandler } from '../../src/session-approval.mjs';
 
-export default createDeviceProtectedHandler(createMyNotesHandler());
+export default createSessionProtectedHandler(createMyNotesHandler());
