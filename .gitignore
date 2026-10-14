@@ -1,4 +1,5 @@
 artifacts/
+policy/audit.jsonl
 bundle-notes.json
 .env
 .env.*
