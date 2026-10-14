@@ -3,7 +3,6 @@ import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
 import {
   createPolicyRestorePreview,
-  policySnapshotSha256,
   restoreTestPolicy,
 } from '../src/stage10-policy-recovery.mjs';
 
@@ -25,14 +24,13 @@ const source = {
   gitBlob: '2'.repeat(40),
   ruleIds: ['device_registered', 'step_up_required', 'resource_zone'],
 };
-const snapshotPayload = {
+const snapshot = {
   schema: 'aleph.stage10.policy-snapshot.v1',
   snapshotId: 'stage9-safe-policy',
   source,
   scope: { service: 'notes', property: 'rules' },
   safeRules: ['device_registered', 'step_up_required', 'resource_zone'],
 };
-const snapshot = { ...snapshotPayload, sha256: policySnapshotSha256(snapshotPayload) };
 
 function changedPolicy() {
   return {
@@ -58,39 +56,34 @@ test('policy restore refuses a missing or unverified safe snapshot', () => {
     currentPolicy: changedPolicy(),
     verifiedSource: { ...source, gitBlob: '3'.repeat(40) },
   }), /Git 출처/u);
-  assert.throws(() => createPolicyRestorePreview({
-    snapshot: { ...snapshot, sha256: '0'.repeat(64) },
-    currentPolicy: changedPolicy(),
-    verifiedSource: source,
-  }), /해시/u);
 });
 
-test('preview shows the exact notes rule delta without changing policy', () => {
+test('preview shows the exact notes rule delta and a confirmation token without changing policy', () => {
   const current = changedPolicy();
   const before = structuredClone(current);
   const preview = createPolicyRestorePreview({ snapshot, currentPolicy: current, verifiedSource: source });
 
   assert.equal(preview.scope, 'services.notes.rules');
-  assert.equal(preview.policyRevision, snapshot.source.commit);
-  assert.equal(preview.policySha256, snapshot.sha256);
   assert.deepEqual(preview.currentRules, ['device_registered', 'public_note_export']);
   assert.deepEqual(preview.safeRules, snapshot.safeRules);
   assert.deepEqual(preview.removedRules, ['public_note_export']);
   assert.deepEqual(preview.addedRules, ['resource_zone', 'step_up_required']);
+  assert.match(preview.confirmationToken, /^[a-f0-9]{64}$/u);
   assert.deepEqual(current, before);
 });
 
-test('restore requires an explicit apply flag and preserves unrelated rules and audit history', () => {
+test('restore requires preview confirmation and preserves unrelated rules and audit history', () => {
   const current = changedPolicy();
+  const preview = createPolicyRestorePreview({ snapshot, currentPolicy: current, verifiedSource: source });
 
   assert.throws(() => restoreTestPolicy({
     snapshot, currentPolicy: current, verifiedSource: source,
-    at: '2026-10-14T00:00:00.000Z',
-  }), /--apply/u);
+    confirmationToken: 'not-the-preview-token', at: '2026-10-14T00:00:00.000Z',
+  }), /확인값/u);
 
   const restored = restoreTestPolicy({
     snapshot, currentPolicy: current, verifiedSource: source,
-    confirmed: true, at: '2026-10-14T00:00:00.000Z',
+    confirmationToken: preview.confirmationToken, at: '2026-10-14T00:00:00.000Z',
   });
 
   assert.deepEqual(restored.services.notes.rules, snapshot.safeRules);

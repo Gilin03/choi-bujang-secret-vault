@@ -50,7 +50,7 @@ function readSandboxPolicy() {
 
 export function runStage10PolicyCommand(args = process.argv.slice(2)) {
   if (args[0] !== 'policy') {
-    throw new Error('사용법: npm run recovery:policy -- init | preview | restore [--apply]');
+    throw new Error('사용법: npm run recovery:policy -- init | preview | restore --confirm <확인값>');
   }
   const action = args[1];
   const { snapshot, verifiedSource } = verifiedSnapshot();
@@ -68,12 +68,10 @@ export function runStage10PolicyCommand(args = process.argv.slice(2)) {
     return { state: 'preview', testOnly: true, ...preview };
   }
   if (action === 'restore') {
-    const preview = createPolicyRestorePreview({ snapshot, currentPolicy, verifiedSource });
-    if (!args.includes('--apply')) {
-      return { state: 'preview', testOnly: true, applyRequired: true, ...preview };
-    }
+    const confirmIndex = args.indexOf('--confirm');
+    const confirmationToken = confirmIndex >= 0 ? args[confirmIndex + 1] : null;
     const restored = restoreTestPolicy({
-      snapshot, currentPolicy, verifiedSource, confirmed: true,
+      snapshot, currentPolicy, verifiedSource, confirmationToken,
     });
     const temporaryFile = `${sandboxPolicy}.tmp`;
     writeFileSync(temporaryFile, `${JSON.stringify(restored, null, 2)}\n`, { flag: 'wx', encoding: 'utf8' });
@@ -85,7 +83,7 @@ export function runStage10PolicyCommand(args = process.argv.slice(2)) {
       sourceCommit: snapshot.source.commit,
     };
   }
-  throw new Error('사용법: npm run recovery:policy -- init | preview | restore [--apply]');
+  throw new Error('사용법: npm run recovery:policy -- init | preview | restore --confirm <확인값>');
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {

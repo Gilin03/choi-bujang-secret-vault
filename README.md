@@ -1,4 +1,4 @@
-# BYTE BACK 방어전 자료실 — 10단계
+# BYTE BACK 방어전 자료실 — 9단계
 
 이 저장소는 Supabase Auth 로그인과 서버 측 사용자별 소유권 검사를 유지하면서 메모 자료 요청을 Vercel 서버 함수로 모으고, 엔진의 가상 접속·자원 구역 판정 및 가상 사건 탐지 연습을 추가한 9단계 학습용 자료실입니다. 메모 데이터는 가상 자료만 사용합니다.
 
@@ -47,20 +47,12 @@
 
 ## 10단계 백업에서 시험 자료실 복원
 
-- `recovery/policy-snapshots/stage9-safe-policy.json`은 9단계의 안전 규칙 사본입니다. 매 명령에서 파일을 다시 읽고 사본 해시와 기준 Git blob을 검증합니다. `npm run recovery:policy -- preview`는 `artifacts/stage10/test-policy.json`과의 차이를 보여 줍니다. `npm run recovery:policy -- restore`도 먼저 같은 preview를 보여 주고, `restore --apply`에서만 시험 파일의 `services.notes.rules`를 복원합니다. 운영 판정기와 설정은 바꾸지 않습니다.
-- 메모 복구 경로는 `POST /api/recovery/notes/:id`입니다. 서버 전용 `note_snapshots` 사본을 매 요청 다시 읽고 schema·ID·owner·content hash·snapshot hash를 확인합니다. 빈 요청은 preview이며, `{ "confirm": true }` 요청에서만 지정된 한 건을 갱신하거나 삭제된 경우 같은 ID·owner로 삽입합니다. confirm 요청도 정책과 snapshot을 다시 읽고 검증한 뒤, DB에서 복원 결과를 다시 읽어 ID·owner·content hash를 비교합니다. 검증 실패 시 쓰기 전에 중단하며, 쓰기 후 불일치는 `RESTORE_MISMATCH`로 보고합니다. 기존 다른 메모와 감사 기록은 건드리지 않습니다.
-- `supabase/stage10-note-snapshots.sql`은 이후 새 메모 INSERT에서 최초 snapshot을 보관하며 연결된 DB에 적용되어 있습니다. 이번 제출 기준으로 기존 메모 6건의 현재 상태를 각 1회 snapshot으로 저장했습니다. 각 snapshot의 ID·소유자·내용 해시와 snapshot 해시를 검증했고, 메모 6건의 내용은 작업 전후 같았습니다. 합성 검증 메모와 snapshot은 제거했으며 감사 기록은 변경하지 않았습니다.
-- Stage 10 및 회귀 검증 기록:
-
-  | 확인 항목 | 결과 | 범위 |
-  | --- | --- | --- |
-  | Stage 10 복구/API 테스트 | 실행, 통과 21/21 | `npm run test:stage10`; 로컬 가상 DB fixture |
-  | 판정기 가상 요청 점검 | 실행, 통과 | `npm run decider:test`; 심판 판정 증거 아님 |
-  | Stage 1~9 대표 회귀 | 실행, 통과 | `npm run test:r5` 4/4, `npm run test:stage3` 7/7, `npm run test:package` 3/3, `npm run test:stage8` 17/17 |
-  | Stage 7·9 가상 사건 점검 | 실행, 통과 | `npm run fixture:7`, `npm run detect:test`; 가상 사건만 확인 |
-  | 전체 자동 회귀 | 실행, 통과 107/107 | `node --test test/*.test.mjs` |
-  | 공백·충돌 표시 점검 | 실행, 통과 | `git diff --check` |
-  | Production 복구 및 Stage 1~9 실계정 재시험 | 미실행 | 메모를 실제 변경하거나 공격 요청을 재전송하지 않음 |
+- `recovery/policy-snapshots/stage9-safe-policy.json`은 9단계 저장점 `7870df1452c9cd3a045c3edfa7171d452bc653da`의 `src/decider.mjs` Git blob과 규칙 목록을 기준으로 한 안전 정책 스냅샷입니다. 복구 도구는 해당 커밋이 현재 기록의 조상인지, 파일 blob 지문과 규칙 목록이 일치하는지 확인하며 하나라도 다르면 중단합니다.
+- 정책 비교·복원은 운영 판정기나 운영 설정이 아니라 무시되는 `artifacts/stage10/test-policy.json`만 대상으로 합니다. `npm run recovery:policy -- init`으로 시험용 변경 정책을 준비하고, `npm run recovery:policy -- preview`로 메모 구역 규칙의 차이와 확인값을 확인한 다음, `npm run recovery:policy -- restore --confirm <확인값>`으로 실행합니다. 복원 범위는 `services.notes.rules`뿐이며 다른 서비스 규칙과 기존 감사 기록은 유지되고 복원 감사 항목 하나가 추가됩니다. 초기화는 기존 파일을 덮어쓰지 않습니다.
+- 비공개 가상 메모 복구 경로는 `POST /api/recovery/notes/:id`이며 `aleph.config.json`의 `restoreRoute`에 기록했습니다. `allowedRoutes`에는 판정기가 허용하지 않는 복구 경로를 넣지 않았습니다. 서버 전용 사본은 `recovery/private/stage10-b-note-backup.json`에 있으며, Vercel 정적 배포 경로인 `public/` 밖에 두어 브라우저 경로나 일반 자료 API로 제공하지 않습니다. `STAGE10_B_NOTE_BACKUP_JSON`과 `STAGE10_B_NOTE_BACKUP_SHA256`은 Production 필수 설정이 아닙니다.
+- 백업 형식은 `aleph.private-note-backup.v1`이며 `version`, 메모의 `id`·`ownerId`·`title`·`body`, `contentSha256`, 사본 전체의 `backupSha256`를 포함합니다. `contentSha256`는 UTF-8 `JSON.stringify({id,ownerId,title,body})`의 SHA-256이고, `backupSha256`는 `schema`·`version`·`note`를 같은 키 순서로 직렬화한 JSON의 SHA-256입니다. 매 preview와 restore 요청은 파일을 새로 읽어 schema·버전·ID·소유자·두 해시를 다시 검증합니다. 사본이 없거나 검증에 실패하면 DB를 조회·수정하지 않고 중단하며, restore는 preview 때 확인한 버전·백업 해시 및 현재 메모 지문이 그대로일 때만 진행합니다. 요청 본문으로 백업 데이터·owner·role을 전달하거나 바꿀 수 없습니다.
+- preview는 복구 버전, 대상 ID, 변경 필드만 보여 주고 데이터를 복구하지 않습니다. 확인된 restore는 지정한 B 메모 한 건만 삽입하거나 갱신합니다. 다른 메모와 감사 기록은 보존하며 복구 함수는 `vault_notes` 외 테이블을 읽거나 쓰지 않습니다. 복구 후 반환 행도 다시 확인하고, 검증이 맞지 않으면 대상 행에 한해 조건부 보상을 시도합니다.
+- 복구 뒤 확인 순서: `npm install`; `npm run recovery:policy -- init`; `npm run recovery:policy -- preview`; diff와 확인값 검토; `npm run recovery:policy -- restore --confirm <확인값>`; `npm run test:stage10`; `npm run test:r5`; `npm run test:stage3`; `npm run test:package`; `npm run decider:test`; `npm run fixture:7`; `npm run test:stage8`; `npm run detect:test`; `node --test test/*.test.mjs`; `npm run bundle`. 로컬 API 시험은 가상 B 계정의 메모 한 건 복원, 백업 누락·불일치·오래된 preview 거부, A 메모와 감사 기록 보존을 확인합니다. 실제 Production 복구 요청은 별도 배포 후 확인해야 하며, 실행하지 않은 경우 미실행으로 기록합니다.
 
 ## Supabase 학습용 테이블
 
