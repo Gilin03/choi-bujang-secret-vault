@@ -1,0 +1,36 @@
+{
+  "schema": "aleph.stage10.test-policy.v1",
+  "revision": "stage10-lab-after-intrusion",
+  "services": {
+    "notes": {
+      "rules": [
+        "device_registered",
+        "public_note_export"
+      ]
+    },
+    "announcements": {
+      "rules": [
+        "read_announcements"
+      ]
+    },
+    "instructor_materials": {
+      "rules": [
+        "read_instructor_materials"
+      ]
+    }
+  },
+  "auditHistory": [
+    {
+      "eventId": "stage10-lab-audit-001",
+      "action": "test_policy_changed",
+      "service": "notes",
+      "at": "2026-10-14T00:00:00.000Z"
+    },
+    {
+      "eventId": "stage10-lab-audit-002",
+      "action": "announcement_policy_checked",
+      "service": "announcements",
+      "at": "2026-10-14T00:01:00.000Z"
+    }
+  ]
+}

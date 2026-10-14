@@ -10,6 +10,8 @@
     "bundle": "node scripts/bundle.mjs",
     "decider:test": "node scripts/decider-test.mjs",
     "test:stage8": "node --test test/decider-stage8.test.mjs test/stage8-api.test.mjs",
+    "test:stage10": "node --test test/stage10-policy-recovery.test.mjs test/stage10-recovery-api.test.mjs",
+    "recovery:policy": "node scripts/stage10-recovery.mjs policy",
     "detect:test": "node scripts/detect-test.mjs",
     "fixture:7": "node scripts/fixture-7.mjs",
     "xdr:run": "node scripts/xdr-run.mjs"
