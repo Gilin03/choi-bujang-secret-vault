@@ -20,16 +20,3 @@ grant select, insert, update, delete on table public.vault_session_approvals to 
 
 comment on table public.vault_session_approvals is
   'Stage 11 learning approval bound to one verified Supabase Auth session_id, not a physical device.';
-
--- Server-side operator flow: inspect only pending requests, then approve a
--- reviewed (session_id, owner_id) pair from the trusted Supabase SQL console.
--- select session_id, owner_id, created_at
--- from public.vault_session_approvals
--- where status = 'pending'
--- order by created_at;
---
--- update public.vault_session_approvals
--- set status = 'approved', approved_at = now()
--- where session_id = '<reviewed-session-uuid>'
---   and owner_id = '<reviewed-auth-user-uuid>'
---   and status = 'pending';

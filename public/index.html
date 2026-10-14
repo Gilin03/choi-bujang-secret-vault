@@ -85,7 +85,7 @@
     <section id="session-approval-panel" class="panel" aria-labelledby="session-approval-heading" hidden>
       <h2 id="session-approval-heading">로그인 세션 승인</h2>
       <p id="session-approval-status" role="status" aria-live="polite">서버 승인 상태를 확인합니다.</p>
-      <p class="fine-print">승인 요청은 pending으로 저장됩니다. 운영자가 서버에서 승인하기 전에는 자료를 열 수 없습니다. 이 흐름은 물리 기기를 증명하지 않습니다.</p>
+      <p class="fine-print">승인 요청을 받으면 서버가 로그인 세션을 검증하고 이 세션만 승인 상태로 기록합니다. 승인 상태를 다시 확인한 뒤 자료를 엽니다. 이 흐름은 물리 기기를 증명하지 않습니다.</p>
       <div class="actions">
         <button id="session-approval-request" type="button" hidden>기기 승인 요청</button>
         <button id="session-approval-retry" class="secondary" type="button" hidden>승인 상태 다시 확인</button>
@@ -256,7 +256,8 @@
         return false;
       }
       if (status.status === 'pending') {
-        showMessage(approvalStatus, '승인 대기 중입니다. 서버 승인이 끝나기 전에는 자료를 열 수 없습니다.');
+        showMessage(approvalStatus, '이 세션에 이전 승인 요청이 남아 있습니다. 서버에 승인을 다시 요청할 수 있습니다.');
+        approvalRequest.hidden = false;
         approvalRetry.hidden = false;
         return false;
       }
@@ -279,7 +280,7 @@
         headers: { Authorization: `Bearer ${session.access_token}` }, cache: 'no-store',
       });
       const result = await response.json().catch(() => ({}));
-      if (!response.ok || !['pending', 'approved'].includes(result.status)) {
+      if (!response.ok || result.status !== 'approved') {
         throw new Error(result.error || '세션 승인 요청을 저장하지 못했습니다.');
       }
       await verifyCurrentSessionApproval(session);

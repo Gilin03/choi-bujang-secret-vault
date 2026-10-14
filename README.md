@@ -26,27 +26,11 @@
 
 - `/manifest.webmanifest`는 `BYTE BACK 자료실` 이름, 독립 실행 표시, 아이콘, 오프라인 안내를 제공합니다. 화면에는 브라우저/설치 앱 실행 상태를 보여 주며, 설치 표시는 기기 승인으로 취급하지 않습니다. 오프라인 화면에서는 자료를 보여 주거나 저장하지 않습니다.
 - 로그인 뒤 서버가 검증한 현재 Supabase 로그인 세션의 승인 상태를 확인합니다. 계정 전체가 아니라 UUID `session_id`별로 저장하므로 새 로그인 세션은 승인을 이어받지 않습니다. 브라우저 localStorage/sessionStorage에 승인 토큰이나 기기 키를 저장하지 않습니다.
-- **기기 승인 요청**은 현재 검증된 세션과 사용자 ID로 `pending` 행만 만듭니다. 요청 본문에서 온 세션·사용자·상태는 무시합니다. 세션 ID 검증이나 DB 조회에 실패하면 보호 자료를 차단합니다.
-- DB 구조는 [`stage11-session-approval.sql`](supabase/stage11-session-approval.sql)을 사용합니다. 이 파일은 새 `vault_session_approvals` 테이블만 추가하며 기존 단계 테이블을 변경·삭제하지 않습니다. Supabase **SQL Editor**에서 마이그레이션을 적용하고, 요청의 세션과 Auth 사용자를 확인한 뒤 서버 운영자가 해당 대기 행을 승인합니다. 아래 조회 결과는 운영 콘솔 안에서 검토하고 식별값을 공개하지 마세요.
-
-  ```sql
-  select session_id, owner_id, created_at
-  from public.vault_session_approvals
-  where status = 'pending'
-  order by created_at;
-  ```
-
-  ```sql
-  update public.vault_session_approvals
-  set status = 'approved', approved_at = now()
-  where session_id = '<검토한 Supabase 세션 UUID>'
-    and owner_id = '<대조한 Auth 사용자 UUID>'
-    and status = 'pending';
-  ```
-
-- 화면은 서버 상태가 `approved`인 같은 세션에서만 기존 자료실을 표시합니다. 각 보호 API도 검증된 사용자와 세션 ID를 함께 조회해 `approved`인지 확인한 다음 기존 소유권·강사 권한 검사를 수행합니다. 브라우저 승인 버튼은 요청만 만들며 승인 권한은 주지 않습니다.
+- **기기 승인 요청**을 받으면 서버가 Supabase `getClaims`로 현재 로그인 세션을 검증하고, 그 사용자와 `session_id` 조합만 `approved`로 기록합니다. 요청 본문에서 온 세션·사용자·승인 상태는 무시하며, 세션 ID 검증이나 DB 조회·기록에 실패하면 보호 자료를 차단합니다. 이전 구현에서 남은 `pending` 행도 같은 검증 세션의 요청으로 승인 상태로 바뀝니다.
+- DB 구조는 [`stage11-session-approval.sql`](supabase/stage11-session-approval.sql)을 사용합니다. 이 파일은 새 `vault_session_approvals` 테이블만 추가하며 기존 단계 테이블을 변경·삭제하지 않습니다. 아직 DB에 테이블을 만들지 않은 환경은 Supabase **SQL Editor**에서 이 스키마를 한 번 적용해야 합니다. 각 요청을 승인하기 위한 운영자 SQL은 필요하지 않습니다.
+- 화면은 승인 API 응답을 받은 뒤 상태 API를 다시 조회하고, 서버 상태가 `approved`인 같은 세션에서만 기존 자료실을 표시합니다. 각 보호 API도 검증된 사용자와 세션 ID를 함께 조회해 `approved`인지 확인한 다음 기존 소유권·강사 권한 검사를 수행합니다. 새 로그인 세션은 별도 행을 가지므로 승인을 상속하지 않습니다.
 - Supabase Auth 세션은 페이지 메모리에서만 유지됩니다. 설치형 웹앱 여부, 계정 ID, 버튼 클릭만으로 승인하지 않으며 이 흐름은 실제 물리 기기 증명을 제공하지 않습니다.
-- `npm run test:stage11`은 검증된 세션 전달, 누락·잘못된 ID 거부, pending 저장, 새 세션 비상속, 승인 세션만의 API 접근을 가상 DB로 확인합니다. 실제 Production 계정 흐름은 별도 브라우저 확인입니다.
+- `npm run test:stage11`은 검증된 세션 전달, 누락·잘못된 ID 거부, 서버 승인 기록, 새 세션 비상속, 승인 세션만의 API 접근을 가상 DB로 확인합니다. 이 흐름은 학습용 서버 세션 승인이지 실제 물리 기기 증명이 아닙니다. 실제 Production 계정 흐름은 별도 브라우저 확인입니다.
 
 ## 7단계 이상 접속 추가 확인
 

@@ -30,6 +30,8 @@ test('the page separates installed state from server-approved login-session stat
   assert.match(page, /api\/session-approval\/status/u);
   assert.match(page, /api\/session-approval\/request/u);
   assert.match(page, /로그인 세션마다 별도로 승인이 필요/u);
+  assert.match(page, /서버가 로그인 세션을 검증하고 이 세션만 승인 상태로 기록/u);
+  assert.doesNotMatch(page, /운영자가 서버에서 승인/u);
   assert.match(page, /오프라인/u);
   assert.match(page, /persistSession:\s*false/u);
   assert.doesNotMatch(page, /\b(?:localStorage|sessionStorage|indexedDB)\b/u);

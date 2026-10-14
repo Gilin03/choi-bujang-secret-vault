@@ -29,6 +29,24 @@ function makeDatabase(seed = []) {
           };
           return query;
         },
+        update(values) {
+          const filters = [];
+          const query = {
+            eq(column, value) { filters.push([column, value]); return query; },
+            select() {
+              return {
+                async maybeSingle() {
+                  calls.push({ action: 'update', values: { ...values }, filters: [...filters] });
+                  const row = rows.find(row => filters.every(([key, value]) => row[key] === value));
+                  if (!row) return { data: null, error: null };
+                  Object.assign(row, values);
+                  return { data: row, error: null };
+                },
+              };
+            },
+          };
+          return query;
+        },
         insert(values) {
           return {
             select() {
@@ -87,9 +105,15 @@ test('approval status and protected materials reject a missing or malformed veri
   }
 });
 
-test('approval request stores pending only for the server-verified session and ignores client claims', async () => {
+test('approval request records approved only for the verified session and ignores client claims', async () => {
   const database = makeDatabase();
-  const handlers = handlersFor({ principal: { kind: 'student', userId: userA, sessionId: sessionA }, database });
+  const principal = { kind: 'student', userId: userA, sessionId: sessionA };
+  let verificationCount = 0;
+  const handlers = createSessionApprovalHandlers({
+    env,
+    createClient: () => database.client,
+    verifyLogin: async () => { verificationCount += 1; return principal; },
+  });
 
   const response = await handlers.request.fetch(request('/api/session-approval/request', 'POST', {
     session_id: sessionA2,
@@ -97,17 +121,42 @@ test('approval request stores pending only for the server-verified session and i
     status: 'approved',
   }));
 
-  assert.equal(response.status, 202);
-  assert.deepEqual(await response.json(), { status: 'pending' });
-  assert.deepEqual(database.rows, [{
-    session_id: sessionA,
-    owner_id: userA,
-    status: 'pending',
-    created_at: '2026-10-14T00:00:00.000Z',
-  }]);
-  assert.deepEqual(database.calls[0], { action: 'select', filters: [
-    ['session_id', sessionA], ['owner_id', userA],
-  ] });
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { status: 'approved' });
+  assert.equal(verificationCount, 1);
+  assert.equal(database.rows.length, 1);
+  assert.equal(database.rows[0].session_id, sessionA);
+  assert.equal(database.rows[0].owner_id, userA);
+  assert.equal(database.rows[0].status, 'approved');
+  assert.equal(typeof database.rows[0].approved_at, 'string');
+  const insert = database.calls.find(call => call.action === 'insert');
+  assert.equal(insert.values.status, 'approved');
+  assert.equal(insert.values.session_id, sessionA);
+  assert.equal(typeof insert.values.approved_at, 'string');
+  assert.equal(database.calls.some(call => call.action === 'update'), false);
+});
+
+test('a previously pending session is approved by the server for that exact session', async () => {
+  const database = makeDatabase([{ session_id: sessionA, owner_id: userA, status: 'pending' }]);
+  let verificationCount = 0;
+  const handlers = createSessionApprovalHandlers({
+    env,
+    createClient: () => database.client,
+    verifyLogin: async () => { verificationCount += 1; return { kind: 'student', userId: userA, sessionId: sessionA }; },
+  });
+
+  const response = await handlers.request.fetch(request('/api/session-approval/request', 'POST'));
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { status: 'approved' });
+  assert.equal(verificationCount, 1);
+  assert.equal(database.calls.some(call => call.action === 'insert'), false);
+  assert.equal(database.rows[0].status, 'approved');
+  const update = database.calls.find(call => call.action === 'update');
+  assert.deepEqual(update.filters, [
+    ['session_id', sessionA], ['owner_id', userA], ['status', 'pending'],
+  ]);
+  assert.equal(update.values.status, 'approved');
 });
 
 test('new session and other account never inherit another session approval', async () => {
@@ -170,7 +219,7 @@ test('approval request cannot downgrade an already approved session', async () =
   assert.equal(database.rows[0].status, 'approved');
 });
 
-test('approval API exposes status and request only; clients cannot approve a session', async () => {
+test('approval API exposes status and request only; clients cannot set approval state', async () => {
   const database = makeDatabase();
   const api = createSessionApprovalApiHandler({
     env,
@@ -180,16 +229,18 @@ test('approval API exposes status and request only; clients cannot approve a ses
 
   const status = await api.fetch(request('/api/session-approval/status'));
   const requestApproval = await api.fetch(request('/api/session-approval/request', 'POST'));
+  const statusAfterRequest = await api.fetch(request('/api/session-approval/status'));
   const forbiddenApprove = await api.fetch(request('/api/session-approval/approve', 'POST', {
     session_id: sessionA,
     status: 'approved',
   }));
 
   assert.deepEqual(await status.json(), { status: 'not_registered' });
-  assert.deepEqual(await requestApproval.json(), { status: 'pending' });
-  assert.equal(requestApproval.status, 202);
+  assert.deepEqual(await requestApproval.json(), { status: 'approved' });
+  assert.deepEqual(await statusAfterRequest.json(), { status: 'approved' });
+  assert.equal(requestApproval.status, 200);
   assert.equal(forbiddenApprove.status, 404);
-  assert.equal(database.rows[0].status, 'pending');
+  assert.equal(database.rows[0].status, 'approved');
 });
 
 test('every protected notes and announcement entrypoint checks session approval first', () => {
@@ -207,8 +258,9 @@ test('every protected notes and announcement entrypoint checks session approval 
   }
 });
 
-test('session approval schema isolates server access and approval is a pending-only SQL transition', () => {
+test('session approval schema isolates server access and contains no operator approval SQL', () => {
   const sql = readFileSync(new URL('../supabase/stage11-session-approval.sql', import.meta.url), 'utf8');
+  const readme = readFileSync(new URL('../README.md', import.meta.url), 'utf8');
 
   assert.match(sql, /create table if not exists public\.vault_session_approvals/u);
   assert.match(sql, /session_id uuid primary key/u);
@@ -216,6 +268,7 @@ test('session approval schema isolates server access and approval is a pending-o
   assert.match(sql, /enable row level security/u);
   assert.match(sql, /revoke all .* from public, anon, authenticated/u);
   assert.match(sql, /grant select, insert, update, delete .* to service_role/u);
-  assert.match(sql, /where[^;]*status\s*=\s*'pending'/isu);
+  assert.doesNotMatch(sql, /server-side operator flow|update public\.vault_session_approvals/iu);
+  assert.doesNotMatch(readme, /update public\.vault_session_approvals|서버 운영자가 해당 대기 행을 승인/iu);
   assert.doesNotMatch(sql, /deviceRegistered|webauthn|passkey/iu);
 });

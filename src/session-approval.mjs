@@ -59,6 +59,51 @@ async function approvalFor(client, principal) {
   return data;
 }
 
+function belongsToVerifiedSession(row, principal, status) {
+  return row?.session_id === principal.sessionId
+    && row?.owner_id === principal.userId
+    && row?.status === status;
+}
+
+async function approvePendingSession(client, principal) {
+  const { data, error } = await client.from(TABLE).update({
+    status: 'approved',
+    approved_at: new Date().toISOString(),
+  }).eq('session_id', principal.sessionId).eq('owner_id', principal.userId)
+    .eq('status', 'pending').select(COLUMNS).maybeSingle();
+  if (error) throw new Error('session_approval_update_failed');
+  if (belongsToVerifiedSession(data, principal, 'approved')) return data;
+
+  // A concurrent request may have completed the transition first.
+  const latest = await approvalFor(client, principal);
+  if (belongsToVerifiedSession(latest, principal, 'approved')) return latest;
+  throw new Error('session_approval_update_failed');
+}
+
+async function approveVerifiedSession(client, principal) {
+  const existing = await approvalFor(client, principal);
+  const existingStatus = statusFor(existing);
+  if (existingStatus === 'approved') return existing;
+  if (existingStatus === 'pending') return approvePendingSession(client, principal);
+
+  const { data, error } = await client.from(TABLE).insert({
+    session_id: principal.sessionId,
+    owner_id: principal.userId,
+    status: 'approved',
+    approved_at: new Date().toISOString(),
+  }).select(COLUMNS).maybeSingle();
+  if (belongsToVerifiedSession(data, principal, 'approved')) return data;
+
+  if (error?.code === '23505') {
+    const raced = await approvalFor(client, principal);
+    if (belongsToVerifiedSession(raced, principal, 'approved')) return raced;
+    if (belongsToVerifiedSession(raced, principal, 'pending')) {
+      return approvePendingSession(client, principal);
+    }
+  }
+  throw new Error('session_approval_insert_failed');
+}
+
 function statusFor(row) {
   if (!row) return 'not_registered';
   if (row.status === 'pending' || row.status === 'approved') return row.status;
@@ -87,31 +132,10 @@ export function createSessionApprovalHandlers({ env = process.env, createClient,
         if (auth.error) return auth.error;
         try {
           const client = await database(env, createClient);
-          const existing = await approvalFor(client, auth.principal);
-          if (existing) {
-            const status = statusFor(existing);
-            return json({ status }, status === 'pending' ? 202 : 200);
-          }
-
-          const { data, error } = await client.from(TABLE).insert({
-            session_id: auth.principal.sessionId,
-            owner_id: auth.principal.userId,
-            status: 'pending',
-          }).select(COLUMNS).maybeSingle();
-          if (error?.code === '23505') {
-            const raced = await approvalFor(client, auth.principal);
-            if (raced) {
-              const status = statusFor(raced);
-              return json({ status }, status === 'pending' ? 202 : 200);
-            }
-          }
-          if (error || !data || data.session_id !== auth.principal.sessionId
-              || data.owner_id !== auth.principal.userId || data.status !== 'pending') {
-            return json({ error: 'Unable to create session approval request' }, 503);
-          }
-          return json({ status: 'pending' }, 202);
+          await approveVerifiedSession(client, auth.principal);
+          return json({ status: 'approved' }, 200);
         } catch {
-          return json({ error: 'Unable to create session approval request' }, 503);
+          return json({ error: 'Unable to approve verified session' }, 503);
         }
       },
     },
