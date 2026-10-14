@@ -5,6 +5,7 @@ export const RESOURCE_IDS = Object.freeze({
 
 const NOTE_ID = '[A-Za-z0-9_-]{1,64}';
 const NOTE_ITEM = new RegExp(`^/notes/${NOTE_ID}$`, 'u');
+const NOTE_RESTORE = new RegExp(`^/notes/${NOTE_ID}/restore$`, 'u');
 const NOTE_FUNCTION_SEGMENTS = new Set([
   'export', 'exports', 'download', 'all', 'list', 'search', 'bulk', 'batch', 'share', 'shared',
   'public', 'admin', 'backup', 'dump', 'import', 'sync', 'raw', 'query', 'count', 'report',
@@ -17,6 +18,7 @@ const ZONES = Object.freeze({
   'GET /notes/:id': { path: NOTE_ITEM, operation: 'get' },
   'PUT /notes/:id': { path: NOTE_ITEM, operation: 'put' },
   'DELETE /notes/:id': { path: NOTE_ITEM, operation: 'delete' },
+  'POST /notes/:id/restore': { path: NOTE_RESTORE, operation: 'restore' },
 });
 
 function stripApi(value) {
@@ -49,7 +51,9 @@ export function classifyResourceRequest(request) {
   const rule = ZONES[`${method} ${canonicalRoute}`];
   if (!rule || !rule.path.test(canonicalPath)) return null;
 
-  const noteId = canonicalPath.startsWith('/notes/') ? canonicalPath.slice('/notes/'.length) : null;
+  const noteId = canonicalPath.startsWith('/notes/')
+    ? canonicalPath.slice('/notes/'.length).split('/')[0]
+    : null;
   if (noteId !== null && NOTE_FUNCTION_SEGMENTS.has(noteId.toLowerCase())) return null;
 
   return { resourceId: RESOURCE_IDS.personalNotes, operation: rule.operation };

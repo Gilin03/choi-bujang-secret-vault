@@ -37,6 +37,9 @@ test('resource zoning allows the dedicated self-list and exact note CRUD routes'
   const create = await decide(request({ method: 'POST', path: '/api/notes', route: 'POST /api/notes' }));
   const update = await decide(request({ method: 'PUT', path: `/api/notes/${noteId}`, route: 'PUT /api/notes/:id' }));
   const remove = await decide(request({ method: 'DELETE', path: `/api/notes/${noteId}`, route: 'DELETE /api/notes/:id' }));
+  const restore = await decide(request({
+    method: 'POST', path: `/api/notes/${noteId}/restore`, route: 'POST /api/notes/:id/restore',
+  }));
 
   assert.deepEqual(RULE_IDS, ['device_registered', 'step_up_required', 'resource_zone']);
   assert.equal(read.decision, 'allow');
@@ -44,11 +47,13 @@ test('resource zoning allows the dedicated self-list and exact note CRUD routes'
   assert.equal(create.decision, 'allow');
   assert.equal(update.decision, 'allow');
   assert.equal(remove.decision, 'allow');
+  assert.equal(restore.decision, 'allow');
   assert.ok(read.ruleIds.includes('resource_zone'));
   assert.ok(ownList.ruleIds.includes('resource_zone'));
   assert.ok(create.ruleIds.includes('resource_zone'));
   assert.ok(update.ruleIds.includes('resource_zone'));
   assert.ok(remove.ruleIds.includes('resource_zone'));
+  assert.ok(restore.ruleIds.includes('resource_zone'));
 });
 
 test('the ambiguous shared notes list is denied while the explicit self-list route is allowed', async () => {
@@ -178,6 +183,7 @@ test('allowedRoutes uses this project string schema for deployed Stage 8 API rou
     'GET /api/notes/:id',
     'PUT /api/notes/:id',
     'DELETE /api/notes/:id',
+    'POST /api/notes/:id/restore',
     'GET /api/announcements',
     'GET /api/announcements/:id',
     'PUT /api/announcements/:id',

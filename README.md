@@ -45,6 +45,19 @@
 - 이 사건 계약에는 네트워크·기기 ID·기존 판정 결과가 없습니다. 따라서 구현은 그 신호를 꾸며내지 않고, 제안 대상도 계약에서 확인되는 가명 `subject`로 한정합니다. 실제 세션 회수·차단·경과 시간 측정은 연결하거나 검증하지 않았습니다.
 - `npm run detect:test`와 `node --test test/detect-stage9.test.mjs`는 로컬 가상 사건만 확인합니다. 이 테스트 통과는 운영 사건 전달, 실제 권한 회수, 또는 심판 결과를 뜻하지 않습니다.
 
+## 10단계 제작 1 정책 차이 미리보기
+
+- `npm run policy:compare`는 매 실행마다 `policies/stage9-safe-policy.json`을 다시 읽어 고정 SHA-256과 Stage 9 원본 Git 커밋·blob 근거를 검증한 뒤, `RULE_IDS`와 `allowedRoutes`의 차이만 미리 보여 줍니다. 사본 누락·무결성 오류·출처 검증 실패 시 중단합니다.
+- 출력에는 복원 기준 버전과 변경 범위가 표시됩니다. 이 명령은 비교 전용이며 시험 정책·운영 정책·DB를 변경하지 않습니다.
+- 시험 정책을 적용하려면 먼저 비교 결과를 확인한 다음 `npm run policy:apply -- --apply --confirm <revision>`을 실행합니다. apply 명령도 사본을 재검증하고 미리보기를 먼저 출력하며, 확인 revision이 다르거나 빠지면 중단합니다. 적용 범위는 `src/decider.mjs`의 `RULE_IDS`와 `aleph.config.json`의 `allowedRoutes`뿐입니다.
+
+### 10단계 제작 3 메모 한 건 복원
+
+- `notes` 서비스의 `POST /api/notes/:id/restore`는 Vercel 함수 `api/notes/[id]/restore.mjs`가 처리합니다. 판정기 허용 경로에도 이 단건 경로만 등록했습니다.
+- Stage 10 시작 시 Supabase **SQL Editor**에서 [`stage10-note-backups.sql`](supabase/stage10-note-backups.sql)을 적용합니다. 기존 owner가 있는 메모를 `public.vault_note_backups`에 한 번 캡처하고, 이후 메모 INSERT도 최초 상태만 자동 저장합니다. 백업 행은 API에서 수정·삭제하지 않습니다.
+- 복원 API는 URL ID로 해당 backup 한 건만 조회하고 로그인 owner와 ID·내용 SHA-256을 확인합니다. 변조된 메모는 제목·내용을 갱신하고, 삭제된 메모는 백업 ID·owner로 다시 넣은 뒤 DB에서 ID·owner·내용 해시를 확인합니다. 요청 본문은 사용하지 않으며 다른 메모와 감사 테이블은 쓰지 않습니다.
+- `node --test test/note-restore.test.mjs`는 B 메모의 변조·삭제 복원과 백업 검증을 메모리 DB fixture로 확인합니다. 실제 Supabase SQL 적용, 연결 DB 복원, 배포는 실행하지 않았습니다.
+
 ## Supabase 학습용 테이블
 
 연결된 `defense` 프로젝트의 `public.vault_notes` 초기 네 샘플(`sort_order` 1–4)은 A 소유 세 건, B 소유 한 건으로 지정했습니다. 최근 재점검 때 추가 소유 메모 두 건도 확인했습니다. `owner_id uuid`에는 `auth.users` 외래키가 없습니다. RLS와 읽기·추가·수정·삭제 소유자 정책을 적용했습니다. 서버 API도 검증한 사용자 ID로 각 요청을 제한합니다.

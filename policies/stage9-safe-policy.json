@@ -1,0 +1,28 @@
+{
+  "schema": "aleph.policy-snapshot.payload.v1",
+  "policyVersion": 9,
+  "policyRevision": "e34c7b95ced93f13cc5abeb2bac720e70a85ad2b",
+  "capturedFromCommit": "e34c7b95ced93f13cc5abeb2bac720e70a85ad2b",
+  "sourceBlobs": {
+    "src/decider.mjs": "c03f86ab003ead5a29d325d16b2dbdcb68e3ffd0",
+    "aleph.config.json": "a1b838385ceeef5c3e5b53250da117d0c0168d45"
+  },
+  "policy": {
+    "RULE_IDS": [
+      "device_registered",
+      "step_up_required",
+      "resource_zone"
+    ],
+    "allowedRoutes": [
+      "GET /api/my/notes",
+      "POST /api/notes",
+      "GET /api/notes/:id",
+      "PUT /api/notes/:id",
+      "DELETE /api/notes/:id",
+      "GET /api/announcements",
+      "GET /api/announcements/:id",
+      "PUT /api/announcements/:id"
+    ]
+  },
+  "sha256": "d0069019d60d1b9d687a4b4451f257156431f9e9cc12ea3e535fd67acd689e0f"
+}

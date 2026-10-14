@@ -1,8 +1,9 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import config from '../aleph.config.json' with { type: 'json' };
 import { RESOURCE_IDS } from './resource-zones.mjs';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
+const SHA256 = /^[a-f0-9]{64}$/u;
 let defaultVerifier;
 
 function json(payload, status) {
@@ -75,6 +76,27 @@ function requestId(request) {
   const match = /^\/api\/notes\/([^/]+)$/u.exec(url.pathname);
   if (!match || url.search) return null;
   try { return decodeURIComponent(match[1]); } catch { return ''; }
+}
+
+function restoreRequestId(request) {
+  const url = new URL(request.url);
+  const match = /^\/api\/notes\/([^/]+)\/restore$/u.exec(url.pathname);
+  if (!match || url.search) return null;
+  try { return decodeURIComponent(match[1]); } catch { return ''; }
+}
+
+function sha256(value) {
+  return createHash('sha256').update(value, 'utf8').digest('hex');
+}
+
+function validNoteBackup(backup, requestedId) {
+  return backup && typeof backup === 'object' && !Array.isArray(backup)
+    && backup.note_id === requestedId && UUID.test(backup.note_id ?? '')
+    && UUID.test(backup.owner_id ?? '')
+    && typeof backup.title === 'string'
+    && typeof backup.content === 'string'
+    && typeof backup.content_sha256 === 'string' && SHA256.test(backup.content_sha256)
+    && sha256(backup.content) === backup.content_sha256;
 }
 
 export function createNotesHandler({ env = process.env, createClient, verifyLogin,
@@ -184,6 +206,71 @@ export function createNoteItemHandler({ env = process.env, createClient, verifyL
         } });
       } catch {
         return json({ error: 'Unable to update note' }, 500);
+      }
+    },
+  };
+}
+
+export function createNoteRestoreHandler({ env = process.env, createClient, verifyLogin } = {}) {
+  return {
+    async fetch(request) {
+      if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
+      const auth = await authenticatedStudent(request, env, verifyLogin);
+      if (auth.error) return auth.error;
+
+      const id = restoreRequestId(request);
+      if (id === null) return json({ error: 'Resource not found' }, 404);
+      if (!UUID.test(id)) return json({ error: 'Invalid note ID' }, 400);
+
+      try {
+        const supabase = await database(env, createClient);
+        const { data: backup, error: backupError } = await supabase.from('vault_note_backups')
+          .select('note_id,owner_id,title,content,content_sha256')
+          .eq('note_id', id).maybeSingle();
+        if (backupError) return json({ error: 'Unable to load note backup' }, 500);
+        if (!backup || backup.note_id !== id || backup.owner_id !== auth.userId) {
+          return json({ error: 'Note not found' }, 404);
+        }
+        if (!validNoteBackup(backup, id)) return json({ error: 'Note backup verification failed' }, 500);
+
+        const existing = await supabase.from('vault_notes').select('id,owner_id')
+          .eq('id', backup.note_id).maybeSingle();
+        if (existing.error) return json({ error: 'Unable to restore note' }, 500);
+        if (existing.data && existing.data.id !== backup.note_id) {
+          return json({ error: 'Note not found' }, 404);
+        }
+
+        if (existing.data) {
+          const { error } = await supabase.from('vault_notes')
+            .update({ owner_id: backup.owner_id, title: backup.title, content: backup.content })
+            .eq('id', backup.note_id);
+          if (error) return json({ error: 'Unable to restore note' }, 500);
+        } else {
+          const { error } = await supabase.from('vault_notes').insert({
+            id: backup.note_id,
+            owner_id: backup.owner_id,
+            title: backup.title,
+            content: backup.content,
+          });
+          if (error) return json({ error: 'Unable to restore note' }, 500);
+        }
+
+        const restored = await supabase.from('vault_notes').select('id,owner_id,content')
+          .eq('id', backup.note_id).maybeSingle();
+        if (restored.error || !restored.data) return json({ error: 'Restore verification failed' }, 500);
+        const contentSha256 = sha256(restored.data.content ?? '');
+        if (restored.data.id !== backup.note_id || restored.data.owner_id !== backup.owner_id
+            || contentSha256 !== backup.content_sha256) {
+          return json({ error: 'Restore verification failed' }, 500);
+        }
+
+        return json({
+          id: restored.data.id,
+          owner_id: restored.data.owner_id,
+          contentSha256,
+        }, 200);
+      } catch {
+        return json({ error: 'Unable to restore note' }, 500);
       }
     },
   };
