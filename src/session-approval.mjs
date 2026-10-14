@@ -1,4 +1,6 @@
 import config from '../aleph.config.json' with { type: 'json' };
+import { randomUUID } from 'node:crypto';
+import { operationRoute, recordOperationResult } from './operations-log.mjs';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 const TABLE = 'vault_session_approvals';
@@ -110,32 +112,51 @@ function statusFor(row) {
   throw new Error('invalid_session_approval_status');
 }
 
-export function createSessionApprovalHandlers({ env = process.env, createClient, verifyLogin } = {}) {
+export function createSessionApprovalHandlers({ env = process.env, createClient, verifyLogin, recordResult } = {}) {
+  async function complete(request, response, principal) {
+    const requestId = randomUUID();
+    const checkedAt = new Date().toISOString();
+    let recorded = false;
+    if (recordResult) {
+      try {
+        recorded = await recordResult({ principal, requestId, checkedAt,
+          method: request.method, route: operationRoute(request.url), status: response.status }, { env, createClient }) === true;
+      } catch { /* Record failure never changes the protected API outcome. */ }
+    }
+    const headers = new Headers(response.headers);
+    headers.set('X-Request-Id', requestId);
+    headers.set('X-Checked-At', checkedAt);
+    headers.set('X-Audit-Recorded', String(recorded));
+    if (/^[a-f0-9]{40}$/iu.test(env.VERCEL_GIT_COMMIT_SHA ?? '')) {
+      headers.set('X-Deployment-Commit', env.VERCEL_GIT_COMMIT_SHA.toLowerCase());
+    }
+    return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+  }
   return {
     status: {
       async fetch(request) {
-        if (request.method !== 'GET') return json({ error: 'Method not allowed' }, 405);
+        if (request.method !== 'GET') return complete(request, json({ error: 'Method not allowed' }, 405));
         const auth = await authenticate(request, env, verifyLogin);
-        if (auth.error) return auth.error;
+        if (auth.error) return complete(request, auth.error);
         try {
           const client = await database(env, createClient);
-          return json({ status: statusFor(await approvalFor(client, auth.principal)) }, 200);
+          return complete(request, json({ status: statusFor(await approvalFor(client, auth.principal)) }, 200), auth.principal);
         } catch {
-          return json({ error: 'Unable to check session approval' }, 503);
+          return complete(request, json({ error: 'Unable to check session approval' }, 503), auth.principal);
         }
       },
     },
     request: {
       async fetch(request) {
-        if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
+        if (request.method !== 'POST') return complete(request, json({ error: 'Method not allowed' }, 405));
         const auth = await authenticate(request, env, verifyLogin);
-        if (auth.error) return auth.error;
+        if (auth.error) return complete(request, auth.error);
         try {
           const client = await database(env, createClient);
           await approveVerifiedSession(client, auth.principal);
-          return json({ status: 'approved' }, 200);
+          return complete(request, json({ status: 'approved' }, 200), auth.principal);
         } catch {
-          return json({ error: 'Unable to approve verified session' }, 503);
+          return complete(request, json({ error: 'Unable to approve verified session' }, 503), auth.principal);
         }
       },
     },
@@ -143,20 +164,20 @@ export function createSessionApprovalHandlers({ env = process.env, createClient,
       return {
         async fetch(request, ...args) {
           const auth = await authenticate(request, env, verifyLogin);
-          if (auth.error) return auth.error;
+          if (auth.error) return complete(request, auth.error);
           try {
             const client = await database(env, createClient);
             const approval = await approvalFor(client, auth.principal);
             if (approval?.status !== 'approved') {
-              return json({
+              return complete(request, json({
                 error: 'Session approval required',
                 status: approval?.status === 'pending' ? 'pending' : 'not_registered',
-              }, 403);
+              }, 403), auth.principal);
             }
           } catch {
-            return json({ error: 'Unable to verify session approval' }, 503);
+            return complete(request, json({ error: 'Unable to verify session approval' }, 503), auth.principal);
           }
-          return handler.fetch(request, ...args);
+          return complete(request, await handler.fetch(request, ...args), auth.principal);
         },
       };
     },
@@ -164,5 +185,5 @@ export function createSessionApprovalHandlers({ env = process.env, createClient,
 }
 
 export function createSessionProtectedHandler(handler, options = {}) {
-  return createSessionApprovalHandlers(options).protect(handler);
+  return createSessionApprovalHandlers({ recordResult: recordOperationResult, ...options }).protect(handler);
 }

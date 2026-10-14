@@ -1,0 +1,2 @@
+# The pinned policy SHA-256 is calculated from Git's LF bytes on every OS.
+policies/stage9-safe-policy.json text eol=lf

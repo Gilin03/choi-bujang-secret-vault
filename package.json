@@ -12,6 +12,8 @@
     "test:stage8": "node --test test/decider-stage8.test.mjs test/stage8-api.test.mjs",
     "detect:test": "node scripts/detect-test.mjs",
     "test:stage11": "node --test test/session-approval.test.mjs test/verify-login-session.test.mjs test/stage11-ui.test.mjs",
+    "test:stage12": "node --test test/operations.test.mjs test/operations-ui.test.mjs",
+    "operations:check": "node scripts/operations-check.mjs",
     "policy:compare": "node scripts/policy-diff.mjs",
     "policy:apply": "node scripts/policy-restore.mjs",
     "fixture:7": "node scripts/fixture-7.mjs",

@@ -1,6 +1,6 @@
-# BYTE BACK 방어전 자료실 — 11단계
+# BYTE BACK 방어전 자료실 — 12단계
 
-이 저장소는 Supabase Auth 로그인과 서버 측 사용자별 소유권 검사를 유지하면서 메모 자료 요청을 Vercel 서버 함수로 모으고, 엔진의 가상 접속·자원 구역 판정, 가상 사건 탐지, 검증된 정책·메모 복구 연습, 설치형 화면과 로그인 세션 승인 흐름을 추가한 11단계 학습용 자료실입니다. 세션 승인은 학습용 서버 승인으로 물리 기기 증명을 뜻하지 않습니다. 메모 데이터는 가상 자료만 사용합니다.
+이 저장소는 Supabase Auth 로그인과 서버 측 사용자별 소유권 검사를 유지하면서 메모 자료 요청을 Vercel 서버 함수로 모으고, 계약 판정·가상 사건 탐지·단건 복구·설치형 화면·로그인 세션 승인과 실제 API 기록을 읽는 탈환 작전실을 추가한 12단계 학습용 자료실입니다. 세션 승인은 학습용 서버 승인으로 물리 기기 증명을 뜻하지 않습니다. 메모 데이터는 가상 자료만 사용합니다.
 
 이 프로젝트는 1단계에서 학생 본인의 GitHub 저장소와 Vercel 배포를 만든 시작 틀에서 이어집니다. 새로 시작하는 학생은 GitHub 계정을 만든 뒤 방어전 1단계 카드의 **Deploy** 흐름에서 본인 계정의 공개 저장소와 Vercel 프로젝트를 만들고, 배포 주소를 카드에 제출합니다. 이 자료실은 그 같은 저장소와 배포를 단계별로 보강합니다.
 
@@ -22,7 +22,63 @@
 - 로컬 점검: `node --test test/auth-proxy.test.mjs`, `npm run test:r5`, `npm run test:stage3`, `npm run build -- --local`, `npm run decider:test`, `npm run fixture:7`, `node --test test/decider-stage7.test.mjs`, `npm run test:stage8`, `npm run detect:test`, `node --test test/detect-stage9.test.mjs`.
 - 저장점 커밋과 실제 배포가 끝난 뒤 `npm run bundle`을 실행하면 실제 비로그인 요청의 상태만 제출 묶음에 기록합니다. 이 결과는 학생의 자체 점검이며 심판 판정이 아닙니다. A 계정의 정상 로그인과 메모 CRUD는 웹 화면에서 별도로 확인해야 합니다. `bundle-notes.json`과 `artifacts/submission.json`은 커밋하지 않습니다.
 
-## 11단계 설치형 화면과 기기 승인
+## 12단계 탈환 작전실 · 설치와 재현
+
+`12단계 저장점` 커밋을 검사 기준으로 사용합니다. `git rev-parse HEAD`와 Production `/aleph.json`의 `commit`, 작전실의 배포 커밋을 대조하세요. 결과 파일도 검사한 commit을 포함합니다. 이전 커밋에서 확인한 결과를 새 배포 결과로 옮기지 않습니다.
+
+- 승인 후 **탈환 작전실** 탭을 열면 `GET /api/session-approval/operations`가 본인의 최근 서버 요청 최대 100건과 복구 사본 메타데이터를 반환합니다. 가상 메모 제목·본문, 토큰, 이메일, 사용자 UUID, session_id는 작전실 응답에 없습니다. 기존 메모 화면은 **내 자료실** 탭으로 유지합니다.
+- API 허용·거부·서버 오류 수는 응답의 `api.records` 배열과 동일한 범위에서 계산합니다. 이는 HTTP 결과이며 ALEPH 판정기의 allow/deny 결과로 바꾸지 않습니다. 기록의 요청 ID·시각·경로 템플릿·HTTP 상태·배포 commit을 표에서 대조할 수 있습니다. 서버가 기록에 실패하면 `X-Audit-Recorded: false`이며 그 요청은 DB 집계에 포함되지 않습니다.
+- 규칙 3개는 실제 `RULE_IDS`입니다. 운영 엔진의 판정·탐지·접속 회수 결과 경로는 이 저장소에 연결되어 있지 않아 **미실행**, 사건 수는 **미확인**입니다. `detect()`의 `propose_revocation`은 회수 제안입니다. 실제 회수 완료라고 표시하지 않습니다.
+- 정책 복구 기준은 검증 가능한 Stage 9 사본의 버전·revision입니다. 실제 정책 복구 결과는 미실행입니다. 메모 사본은 본인 소유 백업의 캡처 시각·SHA-256·가린 참조만 보여 줍니다. 백업 존재는 복구 성공이 아닙니다. 단건 복구 성공 응답 수는 최근 감사 기록에 한정합니다.
+- **정상·금지 요청 검사**는 1~11단계의 요청 계획·기대 결과·실제 HTTP 상태·요청 ID·확인 시각을 한 표로 만듭니다. 승인된 자기 목록 GET과 비로그인 거부 요청은 실측하며, 지원되지 않는 운영 엔진·교차 계정·자료 복구 요청은 사유와 함께 미실행으로 둡니다. 클라이언트에서 추정한 상태는 기록하지 않습니다. 승인 상태는 HTTP 200뿐 아니라 `status: approved`도 확인합니다.
+- 결과 JSON은 검사 당시 커밋, 화면 메모리의 실측과 서버의 가린 기록을 담습니다. 실행 전후 배포를 확인하며 배포 커밋이 바뀌면 이전 검사와 진행 중인 결과 반영을 무효화합니다. 로그아웃·승인 재확인 때 화면 기록은 지워집니다. **가린 결과 JSON 받기**로 재실행 전 보관할 수 있습니다. 브라우저 저장소에는 승인 토큰·기기 키·검사 기록을 저장하지 않습니다.
+- 공식 41종 시험의 이름·결과 계약은 제공되지 않았으므로 **총수 41 / 실행 0 / 미실행 41 / 통과 미확인**입니다. 자체 HTTP 검사와 로컬 fixture를 41종 통과로 집계하지 않습니다. 12단계 통과·총공세 클리어는 운영 심판 결과가 필요합니다.
+
+### 학생 작업과 제공 엔진의 출처
+
+제공 엔진은 **ALEPH SDP 엔진**입니다. `docs/DECIDER_REQUEST.md`의 `student-kit/sdp-core/decision-contract.mjs` 계약이 요청·응답의 출처입니다. 이 저장소는 제공 엔진의 소스·설치 프로그램·relay를 포함하지 않습니다. 엔진 설치·실행·중지·회수는 수업에서 제공하는 엔진 배포 안내를 따릅니다. 없는 실행 명령이나 결과 API를 만들지 않습니다.
+
+학생이 작성·관리하는 부분은 `src/decider.mjs`, `src/detect.mjs`, 소유권을 검사하는 자료 API, Auth 프록시, 정책·메모 복구 코드, 세션 승인 접속 화면, `src/operations-api.mjs`·`operations-log.mjs`, 작전실 UI와 자체 HTTP 확인 절차입니다. `deviceRegistered`는 엔진 계약 값이며 웹앱 승인 DB를 이 값으로 변환하지 않습니다. 제공 엔진의 보안 성공을 학생 화면 문구로 대신하지 않습니다.
+
+### 설치·실행·중지
+
+1. Node.js 22 이상과 Git을 설치하고 같은 저장소를 받습니다.
+   ```powershell
+   git clone https://github.com/gilin03/choi-bujang-secret-vault.git
+   cd choi-bujang-secret-vault
+   git rev-parse HEAD
+   npm install
+   ```
+2. 새 학습 DB는 아래 기존 테이블 순서로 구성합니다. 현재 연결 DB에는 다시 초기 스키마를 적용하지 않습니다.
+   `supabase/schema.sql` → `owner-policies.sql` → `close-direct-access.sql` →
+   `stage8-resource-zones.sql` → `stage10-note-backups.sql` → `stage11-session-approval.sql`.
+   Stage 12는 `supabase/migrations/20261014131532_stage12_operation_events.sql`을 **한 번** 추가 적용합니다.
+   이미 적용된 migration은 다시 실행하지 않습니다. 자료·owner·backup을 삭제하거나 가짜 자료로 바꾸지 않습니다.
+3. Vercel 설정 화면에 `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `SUPABASE_PUBLISHABLE_KEY`를 등록합니다. 값은 채팅·로그·Git·제출 JSON에 출력하지 않습니다. `aleph.config.json`의 issuer·자료 URL·배포 URL을 본인 프로젝트에 맞춥니다. `judgeIssuer`는 운영 측 설정입니다.
+4. 학생 로컬 계약·복구 검사를 실행합니다.
+   ```powershell
+   node --test test/*.test.mjs
+   npm run decider:test
+   npm run detect:test
+   npm run policy:compare
+   npm run build -- --local
+   ```
+   `decider:test`, `detect:test`, XDR fixture와 메모리 DB 테스트는 로컬 연습입니다. 제공 엔진의 운영 결과가 아닙니다.
+5. 전체 앱을 로컬에서 실행하려면 Vercel 공식 CLI로 같은 프로젝트를 연결한 뒤 `npx vercel dev`를 실행합니다. 비밀값은 공식 환경변수 화면/CLI로만 설정하고 출력하지 않습니다. 정적 파일 서버만으로는 보호 API를 실행할 수 없습니다. 로컬 서버 중지는 터미널에서 `Ctrl+C`입니다. Production 중지는 Vercel 관리 화면의 해당 프로젝트 배포 제어를 사용하고 자료 DB를 삭제하지 않습니다.
+6. 커밋을 `main`에 푸시해 Vercel Git 배포를 실행합니다. READY 상태와 `/aleph.json`의 commit·step을 대조한 뒤 실제 계정으로 로그인 → 세션 승인 → **탈환 작전실** → **정상·금지 요청 검사**를 실행합니다. 화면 숫자는 아래 서버 기록을 기준으로 대조합니다.
+7. 비로그인 Production 자체 점검은 `npm run operations:check`입니다. 현재 HEAD와 배포 SHA가 다르면 중단합니다. `artifacts/operation-checks.json`에 현재 커밋·실측·미실행을 기록하며, 로그인 세션을 요구하는 행은 미실행으로 남습니다. 저장점과 배포가 끝난 뒤 `npm run bundle`로 `artifacts/submission.json`을 생성합니다. 두 결과는 자체 점검이고 심판 판정이 아닙니다.
+
+### 복구·점검 한계
+
+- 정책 복구: `npm run policy:compare`의 검증된 버전과 차이를 확인한 뒤 기존 `policy:apply -- --apply --confirm <revision>` 절차를 따릅니다. Stage 9 정책에는 Stage 10 restore 경로가 없으므로 비교 결과를 검토 없이 적용하면 해당 경로 등록이 빠집니다. 전체 커밋을 되돌리는 대신 필요한 정책 항목만 검토합니다.
+- Windows에서도 고정 해시를 검사하도록 `.gitattributes`가 정책 사본의 LF 줄바꿈을 보존합니다. 사본 내용·해시·Git 출처 검증을 느슨하게 하지 않습니다.
+- Stage 12 로컬 검증: 전체 회귀 테스트, 판정·탐지 가상 연습, 정책 비교·빌드를 확인했습니다. 로컬 브라우저 메모리 DB fixture에서는 확인표 24행 중 실측 기대 일치 15행·미실행 9행이며, 서버 기록 6건(허용 5·거부 1)과 화면 수치가 일치했습니다. JSON 내보내기에도 본문·토큰·사용자/세션 ID가 없었습니다. 이 결과는 Production 인증 E2E가 아닙니다. 로컬 UI 재현은 `node test/operations-preview.mjs`로 시작하고 `Ctrl+C`로 중지합니다.
+- 메모 복구: 승인된 소유자의 `POST /api/notes/:id/restore`만 사용합니다. API의 백업 해시 검증·DB 재검증 후 본인 GET 허용과 다른 계정 GET 거부를 다시 확인하고 요청 ID·시각을 보관합니다. Stage 12의 자동 점검은 자료를 변조·삭제·복원하지 않습니다.
+- 접속 앱 복구: 로그아웃·새 로그인 → 새 세션 승인 → 서버 상태 재조회 순서입니다. 새 세션에 이전 승인을 복사하지 않습니다. 접속 회수 기능은 현재 운영 엔진과 미연결입니다.
+- 실제 DB에서 감사 테이블 RLS와 anon/authenticated 직접 접근 권한 없음, service_role SELECT/INSERT만 허용을 확인했습니다. 서버 전용 표이므로 RLS 정책 없음 안내는 의도된 구성입니다. [Supabase RLS 정책 없음 안내](https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy).
+- 현재 연결의 Vercel 관리 API는 권한 오류(403)이며 CLI 로그인 정보도 없습니다. 배포 commit·step은 공개 식별 파일과 실제 HTTP로 대조합니다. 관리 로그 조회는 확인 불가입니다. 새로운 Production 로그인 세션이 없으면 보호 작전실의 Production 브라우저 확인은 미실행으로 남깁니다.
+
+## 11단계 설치형 화면과 기기 승인 (보존)
 
 - `/manifest.webmanifest`는 `BYTE BACK 자료실` 이름, 독립 실행 표시, 아이콘, 오프라인 안내를 제공합니다. 화면에는 브라우저/설치 앱 실행 상태를 보여 주며, 설치 표시는 기기 승인으로 취급하지 않습니다. 오프라인 화면에서는 자료를 보여 주거나 저장하지 않습니다.
 - 로그인 뒤 서버가 검증한 현재 Supabase 로그인 세션의 승인 상태를 확인합니다. 계정 전체가 아니라 UUID `session_id`별로 저장하므로 새 로그인 세션은 승인을 이어받지 않습니다. 브라우저 localStorage/sessionStorage에 승인 토큰이나 기기 키를 저장하지 않습니다.
@@ -119,17 +175,17 @@ Vercel 프로젝트 **Settings → Environment Variables**에 `SUPABASE_URL`, `S
 
 ## 직접 확인과 남은 약점
 
-최신 Production 주소에서 다음을 확인하세요. A 계정의 실제 로그인·CRUD는 로컬 핸들러 테스트에서 확인했으며, 브라우저 세션으로 실제 계정에 로그인해 확인한 것은 아닙니다.
+최신 Production 주소에서 다음을 확인하세요. Stage 11에서는 실제 로그인 → 승인 전 자료 숨김 → 서버 승인 → 같은 세션 메모 3건 표시 → 새 로그인 세션 미승인을 확인했습니다. Stage 12의 현재 커밋에 대한 실측은 작전실 또는 `operations:check` 결과의 commit을 확인하세요. Production 교차 계정 CRUD·자료 변조/삭제 복구는 미실행입니다.
 
 1. 로그아웃 상태에서 로그인 화면이 보입니다. 비밀번호가 틀린 계정으로 로그인하면 Supabase Auth의 오류 이유가 화면에 표시됩니다.
-2. A 계정으로 로그인하면 A 소유 메모만 표시됩니다. 본인 메모를 추가·수정·삭제한 뒤 목록이 갱신되는지 확인하세요.
+2. A 계정으로 로그인하고 현재 세션을 서버에 승인 요청하면 A 소유 메모만 표시됩니다. 본인 메모를 추가·수정·삭제한 뒤 목록이 갱신되는지 확인하세요.
 3. 로그아웃하면 로그인 화면으로 돌아가고 계정 자료가 화면에서 지워집니다.
 4. 시크릿 창에서 `GET /api/my/notes`를 열면 `401`입니다. 무로그인 `POST /api/notes`와 `GET /api/notes/<UUID>`도 `401`이어야 합니다.
 5. B 계정으로 로그인하면 B 소유 메모만 보여야 합니다. A 메모 UUID를 B의 GET·PUT·DELETE 경로에 넣으면 모두 `404`이고 A의 행은 그대로여야 합니다. A와 B 각각 본인 메모 CRUD도 확인하세요.
 6. `npm run build -- --local` 뒤 로컬 첫 화면 응답에 `X-Content-Type-Options: nosniff`가 있는지 확인하세요. Production 배포 뒤에도 같은 헤더가 와야 합니다.
 7. `close-direct-access.sql` 적용 뒤 원본 주소 `aleph.config.json`의 `originalApiUrl`에 공개용 키로 직접 보낸 읽기 요청은 HTTP `401`, `42501`, 반환 행 `0`이었습니다. SQL 적용 후 `anon`과 `authenticated`의 네 CRUD 권한은 모두 `false`입니다.
 
-판정기 허용 경로는 `aleph.config.json`의 `allowedRoutes`와 맞춥니다: `GET /api/my/notes`, `GET /api/notes/:id`, `GET /notes/:id`, `GET /api/announcements`, `GET /api/announcements/:id`. 메모 추가·수정·삭제와 공지 수정은 API에서는 서버 검증 후 가능하지만, 엔진 계약에 소유자·강사 권한 증거가 없어 판정기의 허용 목록에서는 제외했습니다. Auth 프록시의 token·user·logout 경로도 기록합니다. `originalApiUrl`은 쿼리 없는 Supabase REST 테이블 경로입니다.
+현재 등록 허용 경로는 `aleph.config.json`의 `allowedRoutes`가 기준입니다. 자기 목록·메모 단건 CRUD·복원·공지 경로를 등록합니다. 판정기는 메모 소유권을 추정하지 않고 최종 API가 소유자를 검사합니다. 학생 공지 쓰기는 판정기에서도 거부하고 API는 저장된 강사 권한을 검사합니다. Auth 프록시·세션 승인·작전실은 별도 웹앱 관리 경로이며 엔진 자료 허용 경로에 추가하지 않습니다. `originalApiUrl`은 쿼리 없는 Supabase REST 테이블 경로입니다.
 
 현재 배포의 정적 파일 목록과 GitHub의 최신 `main` 파일에서 이전 가상 메모 문장이 남았는지 확인하려면, Vercel의 최신 Production 배포 파일 목록과 GitHub 저장소의 현재 파일을 각각 검색하세요. 로컬에서 GitHub 최신 트리를 검색하는 방법은 다음과 같습니다. `<이전 가상 메모 문장>`을 한 문장씩 실제 검색어로 바꿔 실행하고, 검색어 또는 결과를 저장소에 추가하지 마세요.
 

@@ -6,6 +6,11 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { comparePolicy, readVerifiedSnapshot } from '../src/policy-diff.mjs';
 
+test('checked-out pinned Stage 9 copy validates against real Git provenance on this platform', async () => {
+  const snapshot = await readVerifiedSnapshot();
+  assert.equal(snapshot.policyRevision, 'e34c7b95ced93f13cc5abeb2bac720e70a85ad2b');
+});
+
 const commit = 'e34c7b95ced93f13cc5abeb2bac720e70a85ad2b';
 const payload = {
   schema: 'aleph.policy-snapshot.payload.v1',
