@@ -91,6 +91,13 @@ function restoreRequest(id = noteB, authorization = 'fixture-b', body = {}) {
   });
 }
 
+function noteRequest(id, authorization) {
+  return new Request(`https://vault.example/api/notes/${id}`, {
+    method: 'GET',
+    headers: { Authorization: authorization },
+  });
+}
+
 function vercelRestoreRequest(id, { pathId = id, search = '' } = {}) {
   const request = new Request(`https://vault.example/api/notes/${pathId}/restore${search}`, {
     method: 'POST',
@@ -278,4 +285,35 @@ test('an unrelated pathname is rejected even when request.query.id is present', 
 
   assert.equal(response.status, 404);
   assert.equal(database.calls.length, 0);
+});
+
+test('post-restore retest preserves owner reads and denies B access to A note', async () => {
+  const aNote = { id: noteA, sort_order: 3, owner_id: userA, title: 'A 메모', content: 'A 내용' };
+  const tamperedB = {
+    ...expectedRestoredNote,
+    owner_id: userA,
+    title: '변조된 제목',
+    content: '변조된 내용',
+  };
+  const { handler, database } = makeHandler({ rows: [aNote, tamperedB] });
+  const restored = await handler.fetch(restoreRequest());
+  assert.equal(restored.status, 200);
+
+  const noteHandler = notesApi.createNoteItemHandler({
+    env: { SUPABASE_URL: 'https://project.supabase.co', SUPABASE_SECRET_KEY: 'fixture-only-secret' },
+    verifyLogin: async authorization => ({
+      kind: 'student', userId: authorization === 'fixture-a' ? userA : userB,
+    }),
+    createClient: () => database.client,
+  });
+
+  const aOwnRead = await noteHandler.fetch(noteRequest(noteA, 'fixture-a'));
+  const bRestoredRead = await noteHandler.fetch(noteRequest(noteB, 'fixture-b'));
+  const bCrossAccountRead = await noteHandler.fetch(noteRequest(noteA, 'fixture-b'));
+
+  assert.equal(aOwnRead.status, 200);
+  assert.equal(bRestoredRead.status, 200);
+  assert.deepEqual(await bRestoredRead.json(), { id: noteB, title: 'B 메모', body: 'B 내용' });
+  assert.equal(bCrossAccountRead.status, 404);
+  assert.deepEqual(database.tables.vault_notes, [aNote, expectedRestoredNote]);
 });

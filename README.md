@@ -1,6 +1,6 @@
-# BYTE BACK 방어전 자료실 — 9단계
+# BYTE BACK 방어전 자료실 — 10단계
 
-이 저장소는 Supabase Auth 로그인과 서버 측 사용자별 소유권 검사를 유지하면서 메모 자료 요청을 Vercel 서버 함수로 모으고, 엔진의 가상 접속·자원 구역 판정 및 가상 사건 탐지 연습을 추가한 9단계 학습용 자료실입니다. 메모 데이터는 가상 자료만 사용합니다.
+이 저장소는 Supabase Auth 로그인과 서버 측 사용자별 소유권 검사를 유지하면서 메모 자료 요청을 Vercel 서버 함수로 모으고, 엔진의 가상 접속·자원 구역 판정, 가상 사건 탐지, 검증된 정책·메모 복구 연습을 추가한 10단계 학습용 자료실입니다. 메모 데이터는 가상 자료만 사용합니다.
 
 이 프로젝트는 1단계에서 학생 본인의 GitHub 저장소와 Vercel 배포를 만든 시작 틀에서 이어집니다. 새로 시작하는 학생은 GitHub 계정을 만든 뒤 방어전 1단계 카드의 **Deploy** 흐름에서 본인 계정의 공개 저장소와 Vercel 프로젝트를 만들고, 배포 주소를 카드에 제출합니다. 이 자료실은 그 같은 저장소와 배포를 단계별로 보강합니다.
 
@@ -57,6 +57,14 @@
 - Stage 10 시작 시 Supabase **SQL Editor**에서 [`stage10-note-backups.sql`](supabase/stage10-note-backups.sql)을 적용합니다. 기존 owner가 있는 메모를 `public.vault_note_backups`에 한 번 캡처하고, 이후 메모 INSERT도 최초 상태만 자동 저장합니다. 백업 행은 API에서 수정·삭제하지 않습니다.
 - 복원 API는 URL ID로 해당 backup 한 건만 조회하고 로그인 owner와 ID·내용 SHA-256을 확인합니다. 변조된 메모는 제목·내용을 갱신하고, 삭제된 메모는 백업 ID·owner로 다시 넣은 뒤 DB에서 ID·owner·내용 해시를 확인합니다. 요청 본문은 사용하지 않으며 다른 메모와 감사 테이블은 쓰지 않습니다.
 - `node --test test/note-restore.test.mjs`는 B 메모의 변조·삭제 복원과 백업 검증을 메모리 DB fixture로 확인합니다. Production SQL 적용과 Vercel 배포는 진행됐지만, 실제 B 메모를 변조·삭제하는 Production 복원 E2E와 연결 DB 복원 검증은 미실행입니다.
+
+### 10단계 제작 4 복구 뒤 재시험 순서
+
+1. `npm run policy:compare`로 매번 사본의 해시·Git 출처를 검증하고 복원 버전과 변경 항목을 확인합니다. 출력한 revision을 확인한 뒤에만 `npm run policy:apply -- --apply --confirm <revision>`을 실행합니다.
+2. 시험 계정 B로 `POST /api/notes/:id/restore`를 호출합니다. 성공 응답의 메모 ID와 owner, content SHA-256이 검증한 backup과 일치하는지 확인합니다. 사본 검증이나 복원 후 DB 재검증이 실패하면 다음 단계로 넘어가지 않습니다.
+3. 복구 직후 인증된 A 세션으로 A 소유 메모의 `GET /api/notes/:id`가 `200`인지, B 세션으로 복구된 B 메모의 같은 경로 GET이 `200`인지 확인합니다. 이어 B 세션으로 A 메모를 GET해 `404`로 거부되는지 확인합니다. UI에서 세션의 A/B 소유자를 확인하지 못했거나 요청을 보내지 않았다면 결과는 미실행으로 기록합니다.
+4. 로컬 회귀 요청은 단계 순서로 실행합니다: `node --test test/package-starter.test.mjs test/auth-proxy.test.mjs test/r5.test.mjs test/stage3.test.mjs`, `npm run decider:test`, `node --test test/decider-stage7.test.mjs`, `npm run test:stage8`, `node --test test/detect-stage9.test.mjs`, `node --test test/note-restore.test.mjs`. 마지막 테스트의 post-restore 사례는 메모리 DB에서 A 정상 읽기와 B의 A 메모리 접근 거부를 확인하며 Production A/B 시험을 대신하지 않습니다.
+5. 각 실행의 실제 상태 코드와 검증 결과만 기록합니다. `npm run bundle`은 비로그인 공개 경로 점검이므로 A/B 정상·금지 요청의 재시험으로 세지 않습니다.
 
 ## Supabase 학습용 테이블
 
