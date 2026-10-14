@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import test from 'node:test';
 
 const read = path => readFileSync(new URL(path, import.meta.url), 'utf8');
@@ -33,4 +33,15 @@ test('the page separates installed state from server-approved passkey status', (
   assert.match(page, /오프라인/u);
   assert.match(page, /persistSession:\s*false/u);
   assert.doesNotMatch(page, /\b(?:localStorage|sessionStorage|indexedDB)\b/u);
+});
+
+test('device endpoints share one function and the project stays under Hobby function limit', () => {
+  const apiFiles = readdirSync(new URL('../api/', import.meta.url), { recursive: true })
+    .filter(path => /\.(?:mjs|cjs|js|ts)$/iu.test(path));
+  const deviceFiles = apiFiles
+    .map(path => path.replaceAll('\\', '/'))
+    .filter(path => path.startsWith('device/'));
+
+  assert.deepEqual(deviceFiles, ['device/[...path].mjs']);
+  assert.ok(apiFiles.length <= 12, `found ${apiFiles.length} serverless function entrypoints`);
 });

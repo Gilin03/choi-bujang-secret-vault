@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { createHash, generateKeyPairSync, randomBytes, sign as signData } from 'node:crypto';
 import test from 'node:test';
+import { createDeviceApiHandler } from '../api/device/[...path].mjs';
 import {
   createDeviceApprovalHandlers,
   createDeviceProtectedHandler,
@@ -175,14 +176,35 @@ function makeService(database) {
       ],
     })),
   };
+  const options = { env, createClient: database.createClient, verifyLogin, config };
   return {
+    api: createDeviceApiHandler(options),
     verifyLogin,
-    handlers: createDeviceApprovalHandlers({ env, createClient: database.createClient, verifyLogin, config }),
+    handlers: createDeviceApprovalHandlers(options),
     protect: inner => createDeviceProtectedHandler(inner, {
-      env, createClient: database.createClient, verifyLogin, config,
+      ...options,
     }),
   };
 }
+
+test('one catch-all device function dispatches the existing protected API paths', async () => {
+  const service = makeService(createDatabase());
+  const routes = [
+    ['GET', '/api/device/status'],
+    ['POST', '/api/device/status/verify'],
+    ['POST', '/api/device/register/options'],
+    ['POST', '/api/device/register'],
+    ['POST', '/api/device/challenge'],
+  ];
+
+  for (const [method, path] of routes) {
+    const response = await service.api.fetch(request(path, method));
+    assert.equal(response.status, 401, `${method} ${path} must reach the device handler`);
+  }
+
+  const unknown = await service.api.fetch(request('/api/device/unknown', 'GET'));
+  assert.equal(unknown.status, 404);
+});
 
 test('registration creates a pending server record and status never treats it as approved', async () => {
   const database = createDatabase();
