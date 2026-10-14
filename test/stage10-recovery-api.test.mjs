@@ -70,6 +70,7 @@ function createDatabase({ snapshots = [snapshotRow()], notes, auditRows } = {}) 
 const principals = new Map([
   ['Bearer fixture-a', { kind: 'student', userId: userA }],
   ['Bearer fixture-b', { kind: 'student', userId: userB }],
+  ['Bearer judge-b', { kind: 'judge', userId: userB, identity: 'b' }],
 ]);
 
 function makeHandler({ database = createDatabase(), policyReader = async () => policySnapshot } = {}) {
@@ -126,6 +127,26 @@ test('preview is read-only, shows policy and snapshot versions, and restore appe
   assert.equal(fixture.database.tables.note_recovery_audit.length, beforeAudit.length + 1);
   assert.equal(fixture.database.tables.note_recovery_audit.at(-1).action, 'restore_note');
   assert.equal(fixture.policyReads, 2);
+});
+
+test('the verified judge B principal can preview and restore only its owned note', async () => {
+  const fixture = makeHandler();
+  const previewResponse = await fixture.handler.fetch(request(noteB, { authorization: 'Bearer judge-b' }));
+  const preview = await previewResponse.json();
+
+  assert.equal(previewResponse.status, 200, JSON.stringify(preview));
+  assert.equal(preview.operation, 'preview');
+  assert.equal(preview.id, noteB);
+
+  const restoreResponse = await fixture.handler.fetch(request(noteB, {
+    authorization: 'Bearer judge-b', body: { confirm: true },
+  }));
+  const restored = await restoreResponse.json();
+
+  assert.equal(restoreResponse.status, 200, JSON.stringify(restored));
+  assert.equal(restored.restored, true);
+  assert.deepEqual(restored.matches, { id: true, owner: true, contentSha256: true });
+  assert.equal(fixture.database.tables.vault_notes.find((row) => row.id === noteB).owner_id, userB);
 });
 
 test('unauthenticated and unknown-note restore requests are rejected without writes', async () => {

@@ -54,7 +54,7 @@ async function userVerifier(env, injectedVerifier) {
   return defaultVerifier;
 }
 
-async function authenticatedStudent(request, env, injectedVerifier) {
+async function authenticatedRecoveryUser(request, env, injectedVerifier) {
   if (!serviceReady(env)) return { error: json({ error: 'Service unavailable' }, 500) };
   let principal;
   try {
@@ -62,7 +62,7 @@ async function authenticatedStudent(request, env, injectedVerifier) {
   } catch {
     return { error: json({ error: 'Authentication required' }, 401) };
   }
-  if (principal?.kind !== 'student' || !UUID.test(principal.userId ?? '')) {
+  if (!['student', 'judge'].includes(principal?.kind) || !UUID.test(principal.userId ?? '')) {
     return { error: json({ error: 'Authentication required' }, 401) };
   }
   return { userId: principal.userId };
@@ -202,7 +202,7 @@ export function createPrivateNoteRecoveryHandler({
       if (id === null) return json({ error: 'Resource not found' }, 404);
       if (!id) return json({ error: 'Invalid note ID' }, 400);
 
-      const auth = await authenticatedStudent(request, env, verifyLogin);
+      const auth = await authenticatedRecoveryUser(request, env, verifyLogin);
       if (auth.error) return auth.error;
 
       let input;
