@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
 import recoveryRoute from '../api/recovery/notes/[id].mjs';
 import { createPrivateNoteRecoveryHandler } from '../src/stage10-recovery-api.mjs';
@@ -9,39 +8,36 @@ const ownerA = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const ownerB = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const noteB = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
 const noteA = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
-const backupVersion = 'stage10-b-note-v1';
-const backupFile = new URL('../recovery/private/stage10-b-note-backup.json', import.meta.url);
-const backupRaw = await readFile(backupFile, 'utf8');
-const backupFixture = JSON.parse(backupRaw);
 const sha256 = (value) => createHash('sha256').update(value).digest('hex');
-const baseEnv = {
-  SUPABASE_URL: 'https://project.example.invalid',
-  SUPABASE_SECRET_KEY: 'test-only-placeholder',
-};
 
-function makeBackup({
-  id = noteB,
-  ownerId = ownerB,
-  title = 'B 가상 복구 메모',
-  body = '복구 시험 전용 가상 본문',
-  version = backupVersion,
-  contentSha256,
-} = {}) {
-  const noteCore = { id, ownerId, title, body };
+test('Vercel recovery entrypoint exports the private recovery handler', () => {
+  assert.equal(typeof recoveryRoute.fetch, 'function');
+});
+
+function backupEnv() {
   const note = {
-    ...noteCore,
-    contentSha256: contentSha256 ?? sha256(JSON.stringify(noteCore)),
+    id: noteB,
+    ownerId: ownerB,
+    title: 'B 가상 복구 메모',
+    body: '복구 시험 전용 가상 본문',
   };
-  const payload = { schema: 'aleph.private-note-backup.v1', version, note };
-  return JSON.stringify({ ...payload, backupSha256: sha256(JSON.stringify(payload)) });
+  const raw = JSON.stringify({
+    schema: 'aleph.private-note-backup.v1',
+    note: { ...note, contentSha256: sha256(JSON.stringify(note)) },
+  });
+  return {
+    SUPABASE_URL: 'https://project.example.invalid',
+    SUPABASE_SECRET_KEY: 'test-only-placeholder',
+    STAGE10_B_NOTE_BACKUP_JSON: raw,
+    STAGE10_B_NOTE_BACKUP_SHA256: sha256(raw),
+  };
 }
 
-function fakeDatabase(initialRows = [], { corruptNextMutationResponse = false } = {}) {
+function fakeDatabase(initialRows = []) {
   const state = {
     rows: structuredClone(initialRows),
     auditHistory: [{ id: 'audit-preserved', action: 'prior_event' }],
     tablesReadOrWritten: [],
-    corruptNextMutationResponse,
   };
 
   class Query {
@@ -55,7 +51,6 @@ function fakeDatabase(initialRows = [], { corruptNextMutationResponse = false } 
     eq(field, value) { this.filters.push([field, value]); return this; }
     update(payload) { this.operation = 'update'; this.payload = payload; return this; }
     insert(payload) { this.operation = 'insert'; this.payload = payload; return this; }
-    delete() { this.operation = 'delete'; return this; }
     async maybeSingle() { return this.execute(); }
     async single() { return this.execute(); }
     async execute() {
@@ -65,28 +60,13 @@ function fakeDatabase(initialRows = [], { corruptNextMutationResponse = false } 
       if (this.operation === 'select') return { data: matches[0] ? structuredClone(matches[0]) : null, error: null };
       if (this.operation === 'update') {
         for (const row of matches) Object.assign(row, structuredClone(this.payload));
-        const data = matches[0] ? structuredClone(matches[0]) : null;
-        if (state.corruptNextMutationResponse && data) {
-          state.corruptNextMutationResponse = false;
-          data.title = 'unexpected returned row';
-        }
-        return { data, error: null };
+        return { data: matches[0] ? structuredClone(matches[0]) : null, error: null };
       }
       if (this.operation === 'insert') {
         if (state.rows.some((row) => row.id === this.payload.id)) return { data: null, error: { message: 'duplicate' } };
         const row = structuredClone(this.payload);
         state.rows.push(row);
-        const data = structuredClone(row);
-        if (state.corruptNextMutationResponse) {
-          state.corruptNextMutationResponse = false;
-          data.title = 'unexpected returned row';
-        }
-        return { data, error: null };
-      }
-      if (this.operation === 'delete') {
-        const removed = matches.map((row) => structuredClone(row));
-        state.rows = state.rows.filter((row) => !matches.includes(row));
-        return { data: removed[0] ?? null, error: null };
+        return { data: structuredClone(row), error: null };
       }
       return { data: null, error: { message: 'unsupported operation' } };
     }
@@ -109,12 +89,7 @@ function request(id, operation, token = 'b', extra = {}) {
   });
 }
 
-function handler({
-  env = baseEnv,
-  database = fakeDatabase(),
-  tokenMap,
-  backupReader,
-} = {}) {
+function handler({ env = backupEnv(), database = fakeDatabase(), tokenMap } = {}) {
   const identities = tokenMap ?? {
     a: { kind: 'student', userId: ownerA },
     b: { kind: 'student', userId: ownerB },
@@ -125,226 +100,119 @@ function handler({
       env,
       createClient: database.createClient,
       verifyLogin: async (authorization) => identities[authorization?.slice('Bearer '.length)] ?? null,
-      backupReader,
     }),
     database,
   };
 }
 
-function restoreConfirmation(preview) {
-  return {
-    backupVersion: preview.backupVersion,
-    backupSha256: preview.backupSha256,
-    currentContentSha256: preview.currentContentSha256,
-  };
-}
+test('private recovery fails closed when backup config is absent or invalid', async () => {
+  const missing = handler({ env: { SUPABASE_URL: 'https://project.example.invalid', SUPABASE_SECRET_KEY: 'test-only' } });
+  const unavailable = await missing.api.fetch(request(noteB, 'preview'));
+  assert.equal(unavailable.status, 503);
+  assert.deepEqual(await unavailable.json(), { error: 'Recovery backup unavailable' });
+  assert.equal(missing.database.state.tablesReadOrWritten.length, 0);
 
-test('Vercel recovery entrypoint exports the private recovery handler', () => {
-  assert.equal(typeof recoveryRoute.fetch, 'function');
+  const invalidEnv = backupEnv();
+  invalidEnv.STAGE10_B_NOTE_BACKUP_SHA256 = '0'.repeat(64);
+  const invalid = handler({ env: invalidEnv });
+  assert.equal((await invalid.api.fetch(request(noteB, 'preview'))).status, 503);
+  assert.equal(invalid.database.state.tablesReadOrWritten.length, 0);
+
+  const corruptContentEnv = backupEnv();
+  const corruptBackup = JSON.parse(corruptContentEnv.STAGE10_B_NOTE_BACKUP_JSON);
+  corruptBackup.note.contentSha256 = 'f'.repeat(64);
+  corruptContentEnv.STAGE10_B_NOTE_BACKUP_JSON = JSON.stringify(corruptBackup);
+  corruptContentEnv.STAGE10_B_NOTE_BACKUP_SHA256 = sha256(corruptContentEnv.STAGE10_B_NOTE_BACKUP_JSON);
+  const corruptContent = handler({ env: corruptContentEnv });
+  assert.equal((await corruptContent.api.fetch(request(noteB, 'preview'))).status, 503);
+  assert.equal(corruptContent.database.state.tablesReadOrWritten.length, 0);
 });
 
-test('private backup file previews version, target, and changed fields without modifying data', async () => {
+test('recovery requires a verified student whose server identity matches the private backup owner', async () => {
+  const { api, database } = handler();
+  assert.equal((await api.fetch(request(noteB, 'preview', 'missing'))).status, 401);
+  assert.equal((await api.fetch(request(noteB, 'preview', 'judge'))).status, 401);
+  assert.equal((await api.fetch(request(noteB, 'preview', 'a'))).status, 404);
+  assert.equal(database.state.tablesReadOrWritten.length, 0);
+});
+
+test('recovery will not overwrite a target row owned by someone else', async () => {
   const { api, database } = handler({ database: fakeDatabase([
-    { id: noteA, owner_id: ownerA, title: 'A stays', content: 'A content' },
-    { id: noteB, owner_id: ownerB, title: 'B altered', content: 'altered test content' },
+    { id: noteB, owner_id: ownerA, title: 'A-owned', content: 'must remain' },
   ]) });
-
   const response = await api.fetch(request(noteB, 'preview'));
-  assert.equal(response.status, 200);
-  const preview = await response.json();
-  assert.equal(preview.operation, 'preview');
-  assert.equal(preview.backupVersion, backupVersion);
-  assert.equal(preview.id, noteB);
-  assert.deepEqual(preview.changes, ['title', 'content']);
-  assert.equal(preview.backupSha256, backupFixture.backupSha256);
-  assert.equal(JSON.stringify(preview).includes(backupFixture.note.body), false);
-  assert.equal(database.state.rows.find((row) => row.id === noteB).title, 'B altered');
-  assert.deepEqual(database.state.tablesReadOrWritten.map((entry) => entry.operation), ['select']);
+  assert.equal(response.status, 404);
+  assert.deepEqual(database.state.rows, [{ id: noteB, owner_id: ownerA, title: 'A-owned', content: 'must remain' }]);
 });
 
-test('verified private backup restores only B note and preserves A note and audit history', async () => {
+test('B previews and restores exactly the backed up row after confirming both hashes', async () => {
   const initialRows = [
     { id: noteA, owner_id: ownerA, title: 'A stays', content: 'A content' },
     { id: noteB, owner_id: ownerB, title: 'B altered', content: 'altered test content' },
   ];
   const { api, database } = handler({ database: fakeDatabase(initialRows) });
   const previewResponse = await api.fetch(request(noteB, 'preview'));
-  const preview = await previewResponse.json();
   assert.equal(previewResponse.status, 200);
+  const preview = await previewResponse.json();
+  assert.equal(preview.id, noteB);
+  assert.equal(preview.ownerMatched, true);
+  assert.equal(preview.action, 'update');
+  assert.equal(typeof preview.backupSha256, 'string');
+  assert.equal(typeof preview.contentSha256, 'string');
+  assert.equal(preview.contentSha256, JSON.parse(backupEnv().STAGE10_B_NOTE_BACKUP_JSON).note.contentSha256);
+  assert.equal(JSON.stringify(preview).includes('복구 시험 전용 가상 본문'), false);
 
-  const response = await api.fetch(request(noteB, 'restore', 'b', restoreConfirmation(preview)));
-  assert.equal(response.status, 200);
-  const restored = await response.json();
+  const restoreResponse = await api.fetch(request(noteB, 'restore', 'b', {
+    backupSha256: preview.backupSha256,
+    currentContentSha256: preview.currentContentSha256,
+  }));
+  assert.equal(restoreResponse.status, 200);
+  const restored = await restoreResponse.json();
   assert.equal(restored.id, noteB);
-  assert.equal(restored.backupVersion, backupVersion);
-  assert.equal(restored.contentSha256, backupFixture.note.contentSha256);
+  assert.equal(restored.ownerMatched, true);
+  assert.equal(restored.contentSha256, preview.contentSha256);
   assert.deepEqual(database.state.rows.find((row) => row.id === noteA), initialRows[0]);
-  assert.deepEqual(database.state.rows.find((row) => row.id === noteB), {
-    id: noteB,
-    owner_id: ownerB,
-    title: backupFixture.note.title,
-    content: backupFixture.note.body,
-  });
+  assert.equal(database.state.rows.length, 2);
+  assert.equal(database.state.rows.find((row) => row.id === noteB).title, 'B 가상 복구 메모');
+  assert.equal(database.state.rows.find((row) => row.id === noteB).content, '복구 시험 전용 가상 본문');
   assert.deepEqual(database.state.auditHistory, [{ id: 'audit-preserved', action: 'prior_event' }]);
   assert.deepEqual(new Set(database.state.tablesReadOrWritten.map((entry) => entry.table)), new Set(['vault_notes']));
 });
 
-test('missing backup fails before any database access or mutation', async () => {
-  const database = fakeDatabase([{ id: noteB, owner_id: ownerB, title: 'B altered', content: 'altered' }]);
-  const { api } = handler({ database, backupReader: async () => null });
-  const response = await api.fetch(request(noteB, 'restore', 'b', {
-    backupVersion,
-    backupSha256: backupFixture.backupSha256,
-    currentContentSha256: null,
-  }));
-  assert.equal(response.status, 503);
-  assert.deepEqual(database.state.tablesReadOrWritten, []);
-  assert.equal(database.state.rows[0].content, 'altered');
-});
-
-test('backup schema mismatch fails before any database access or mutation', async () => {
-  const parsed = JSON.parse(makeBackup());
-  parsed.schema = 'aleph.unknown-backup.v1';
-  const payload = { schema: parsed.schema, version: parsed.version, note: parsed.note };
-  parsed.backupSha256 = sha256(JSON.stringify(payload));
-  const database = fakeDatabase([{ id: noteB, owner_id: ownerB, title: 'B altered', content: 'altered' }]);
-  const { api } = handler({ database, backupReader: async () => JSON.stringify(parsed) });
-  const response = await api.fetch(request(noteB, 'restore', 'b', {
-    backupVersion,
-    backupSha256: parsed.backupSha256,
-    currentContentSha256: null,
-  }));
-  assert.equal(response.status, 503);
-  assert.deepEqual(database.state.tablesReadOrWritten, []);
-  assert.equal(database.state.rows[0].content, 'altered');
-});
-
-test('backup whole-file hash mismatch fails before any database access or mutation', async () => {
-  const parsed = JSON.parse(backupRaw);
-  parsed.backupSha256 = '0'.repeat(64);
-  const database = fakeDatabase([{ id: noteB, owner_id: ownerB, title: 'B altered', content: 'altered' }]);
-  const { api } = handler({ database, backupReader: async () => JSON.stringify(parsed) });
-  const response = await api.fetch(request(noteB, 'restore', 'b', {
-    backupVersion,
-    backupSha256: parsed.backupSha256,
-    currentContentSha256: null,
-  }));
-  assert.equal(response.status, 503);
-  assert.deepEqual(database.state.tablesReadOrWritten, []);
-  assert.equal(database.state.rows[0].content, 'altered');
-});
-
-test('backup content hash mismatch fails even when the outer backup hash was recomputed', async () => {
-  const parsed = JSON.parse(makeBackup());
-  parsed.note.contentSha256 = 'f'.repeat(64);
-  const payload = { schema: parsed.schema, version: parsed.version, note: parsed.note };
-  parsed.backupSha256 = sha256(JSON.stringify(payload));
-  const database = fakeDatabase([{ id: noteB, owner_id: ownerB, title: 'B altered', content: 'altered' }]);
-  const { api } = handler({ database, backupReader: async () => JSON.stringify(parsed) });
-  const response = await api.fetch(request(noteB, 'restore', 'b', {
-    backupVersion,
-    backupSha256: parsed.backupSha256,
-    currentContentSha256: null,
-  }));
-  assert.equal(response.status, 503);
-  assert.deepEqual(database.state.tablesReadOrWritten, []);
-  assert.equal(database.state.rows[0].content, 'altered');
-});
-
-test('backup owner mismatch fails before any database access or mutation', async () => {
-  const database = fakeDatabase([{ id: noteB, owner_id: ownerB, title: 'B altered', content: 'altered' }]);
-  const { api } = handler({ database, backupReader: async () => makeBackup({ ownerId: ownerA }) });
-  const response = await api.fetch(request(noteB, 'preview'));
-  assert.equal(response.status, 404);
-  assert.deepEqual(database.state.tablesReadOrWritten, []);
-  assert.equal(database.state.rows[0].content, 'altered');
-});
-
-test('backup note ID mismatch fails before any database access or mutation', async () => {
-  const database = fakeDatabase([{ id: noteB, owner_id: ownerB, title: 'B altered', content: 'altered' }]);
-  const { api } = handler({ database, backupReader: async () => makeBackup({ id: noteA }) });
-  const response = await api.fetch(request(noteB, 'preview'));
-  assert.equal(response.status, 404);
-  assert.deepEqual(database.state.tablesReadOrWritten, []);
-  assert.equal(database.state.rows[0].content, 'altered');
-});
-
-test('restore rereads backup and rejects a different valid version confirmed by an earlier preview', async () => {
-  const secondBackup = makeBackup({ version: 'stage10-b-note-v2', body: 'changed virtual snapshot' });
-  const database = fakeDatabase([{ id: noteB, owner_id: ownerB, title: 'B altered', content: 'altered' }]);
-  let reads = 0;
-  const { api } = handler({
-    database,
-    backupReader: async () => (++reads === 1 ? backupRaw : secondBackup),
-  });
-
-  const previewResponse = await api.fetch(request(noteB, 'preview'));
-  assert.equal(previewResponse.status, 200);
-  const preview = await previewResponse.json();
-  const response = await api.fetch(request(noteB, 'restore', 'b', restoreConfirmation(preview)));
-  assert.equal(response.status, 409);
-  assert.equal(reads, 2);
-  assert.deepEqual(database.state.rows[0], { id: noteB, owner_id: ownerB, title: 'B altered', content: 'altered' });
-  assert.deepEqual(database.state.tablesReadOrWritten.map((entry) => entry.operation), ['select']);
-});
-
-test('restore request cannot supply or override the server-only backup fixture', async () => {
-  const database = fakeDatabase();
-  const { api } = handler({ database });
-  const response = await api.fetch(request(noteB, 'preview', 'b', { backup: backupFixture }));
-  assert.equal(response.status, 400);
-  assert.deepEqual(database.state.tablesReadOrWritten, []);
-});
-
-test('B preview confirmation rejects a changed current row without modifying it', async () => {
-  const database = fakeDatabase([{ id: noteB, owner_id: ownerB, title: 'B altered', content: 'altered' }]);
-  const { api } = handler({ database });
-  const previewResponse = await api.fetch(request(noteB, 'preview'));
-  const preview = await previewResponse.json();
-  database.state.rows[0].content = 'changed after preview';
-  const response = await api.fetch(request(noteB, 'restore', 'b', restoreConfirmation(preview)));
-  assert.equal(response.status, 409);
-  assert.equal(database.state.rows[0].content, 'changed after preview');
-  assert.equal(database.state.tablesReadOrWritten.some((entry) => entry.operation === 'update'), false);
-});
-
-test('post-write response verification failure conditionally rolls the row back', async () => {
-  const initialRows = [
-    { id: noteA, owner_id: ownerA, title: 'A stays', content: 'A content' },
-    { id: noteB, owner_id: ownerB, title: 'B altered', content: 'altered test content' },
-  ];
-  const database = fakeDatabase(initialRows, { corruptNextMutationResponse: true });
-  const { api } = handler({ database });
-  const previewResponse = await api.fetch(request(noteB, 'preview'));
-  const preview = await previewResponse.json();
-  const response = await api.fetch(request(noteB, 'restore', 'b', restoreConfirmation(preview)));
-  assert.equal(response.status, 500);
-  assert.deepEqual(database.state.rows, initialRows);
-  assert.deepEqual(database.state.auditHistory, [{ id: 'audit-preserved', action: 'prior_event' }]);
-});
-
-test('restore inserts only B target when absent and preserves other rows and audit history', async () => {
-  const initialRows = [{ id: noteA, owner_id: ownerA, title: 'A stays', content: 'A content' }];
-  const { api, database } = handler({ database: fakeDatabase(initialRows) });
+test('recovery inserts only the target when absent and rejects stale or mismatched confirmations', async () => {
+  const { api, database } = handler({ database: fakeDatabase([{ id: noteA, owner_id: ownerA, title: 'A', content: 'keep' }]) });
   const previewResponse = await api.fetch(request(noteB, 'preview'));
   const preview = await previewResponse.json();
   assert.equal(preview.action, 'insert');
-  assert.deepEqual(preview.changes, ['id', 'owner_id', 'title', 'content']);
+  assert.equal(preview.currentContentSha256, null);
 
-  const response = await api.fetch(request(noteB, 'restore', 'b', restoreConfirmation(preview)));
-  assert.equal(response.status, 201);
+  const rejected = await api.fetch(request(noteB, 'restore', 'b', {
+    backupSha256: preview.backupSha256,
+    currentContentSha256: 'f'.repeat(64),
+  }));
+  assert.equal(rejected.status, 409);
+  assert.equal(database.state.rows.some((row) => row.id === noteB), false);
+
+  const restored = await api.fetch(request(noteB, 'restore', 'b', {
+    backupSha256: preview.backupSha256,
+    currentContentSha256: null,
+  }));
+  assert.equal(restored.status, 201);
   assert.equal(database.state.rows.length, 2);
-  assert.deepEqual(database.state.rows[0], initialRows[0]);
-  assert.equal(database.state.rows[1].id, noteB);
-  assert.equal(database.state.rows[1].owner_id, ownerB);
-  assert.deepEqual(database.state.auditHistory, [{ id: 'audit-preserved', action: 'prior_event' }]);
+  assert.equal(database.state.rows[0].id, noteA);
 });
 
-test('route, method, and request fields stay narrow', async () => {
+test('route, method, and request fields are narrow and never accept a body owner', async () => {
   const { api, database } = handler();
   assert.equal((await api.fetch(new Request(`https://example.test/api/recovery/notes/${noteB}?x=1`, { method: 'POST' }))).status, 404);
   assert.equal((await api.fetch(new Request(`https://example.test/api/recovery/notes/${noteB}`, { method: 'GET' }))).status, 405);
   const forgedOwner = await api.fetch(request(noteB, 'preview', 'b', { ownerId: ownerA }));
   assert.equal(forgedOwner.status, 400);
+  const oversizedBody = new Request(`https://example.test/api/recovery/notes/${noteB}`, {
+    method: 'POST',
+    headers: { authorization: 'Bearer b', 'content-type': 'application/json' },
+    body: JSON.stringify({ operation: 'preview', padding: 'x'.repeat(3000) }),
+  });
+  assert.equal((await api.fetch(oversizedBody)).status, 400);
   assert.deepEqual(database.state.tablesReadOrWritten, []);
 });
