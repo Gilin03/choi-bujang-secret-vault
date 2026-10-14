@@ -45,14 +45,6 @@
 - 이 사건 계약에는 네트워크·기기 ID·기존 판정 결과가 없습니다. 따라서 구현은 그 신호를 꾸며내지 않고, 제안 대상도 계약에서 확인되는 가명 `subject`로 한정합니다. 실제 세션 회수·차단·경과 시간 측정은 연결하거나 검증하지 않았습니다.
 - `npm run detect:test`와 `node --test test/detect-stage9.test.mjs`는 로컬 가상 사건만 확인합니다. 이 테스트 통과는 운영 사건 전달, 실제 권한 회수, 또는 심판 결과를 뜻하지 않습니다.
 
-## 10단계 백업에서 시험 자료실 복원
-
-- `recovery/policy-snapshots/stage9-safe-policy.json`은 9단계 저장점 `7870df1452c9cd3a045c3edfa7171d452bc653da`의 `src/decider.mjs` Git blob과 규칙 목록을 기준으로 한 안전 정책 스냅샷입니다. 복구 도구는 해당 커밋이 현재 기록의 조상인지, 파일 blob 지문과 규칙 목록이 일치하는지 확인하며 하나라도 다르면 중단합니다.
-- 정책 비교·복원은 운영 판정기나 운영 설정이 아니라 무시되는 `artifacts/stage10/test-policy.json`만 대상으로 합니다. `npm run recovery:policy -- init`으로 시험용 변경 정책을 준비하고, `npm run recovery:policy -- preview`로 메모 구역 규칙의 차이와 확인값을 확인한 다음, `npm run recovery:policy -- restore --confirm <확인값>`으로 실행합니다. 복원 범위는 `services.notes.rules`뿐이며 다른 서비스 규칙과 기존 감사 기록은 유지되고 복원 감사 항목 하나가 추가됩니다. 초기화는 기존 파일을 덮어쓰지 않습니다.
-- 비공개 가상 메모 복구 경로는 `POST /api/recovery/notes/:id`이며 `aleph.config.json`의 `restoreRoute`에 기록했습니다. `allowedRoutes`에는 판정기가 허용하지 않는 복구 경로를 넣지 않았습니다. 서버 환경변수 `STAGE10_B_NOTE_BACKUP_JSON`과 `STAGE10_B_NOTE_BACKUP_SHA256`에만 시험 계정 B의 비공개 백업과 원본 JSON의 SHA-256을 설정해야 합니다. 백업 형식은 `aleph.private-note-backup.v1`이며, 내부 `contentSha256`는 UTF-8 `JSON.stringify({id,ownerId,title,body})`의 SHA-256입니다. 경로 ID·검증된 로그인 사용자 ID·백업 ownerId·내용 지문을 모두 대조하고, 미리보기의 현재 내용 지문을 확인한 두 번째 POST만 해당 메모 한 행을 삽입 또는 갱신합니다. 요청 본문 owner나 role은 사용하지 않습니다.
-- 이 저장소에는 실제 비공개 B 메모 백업과 별도 감사 테이블이 없습니다. 따라서 실제 복구 데이터는 만들거나 실행하지 않았고, 백업 환경변수가 없거나 지문이 틀리면 API는 `503`으로 닫힙니다. 시험에서는 가짜 B 계정·가상 메모와 메모 테이블 모형만 사용하며 다른 메모와 감사 기록이 유지되는지 확인합니다. 복구 함수는 `vault_notes` 외 테이블을 읽거나 쓰지 않습니다.
-- 복구 뒤 확인 순서: `npm install`; `npm run recovery:policy -- init`; `npm run recovery:policy -- preview`; diff와 확인값 검토; `npm run recovery:policy -- restore --confirm <확인값>`; `npm run test:stage10`; `npm run test:r5`; `npm run test:stage3`; `npm run test:package`; `npm run decider:test`; `npm run fixture:7`; `npm run test:stage8`; `npm run detect:test`; `node --test test/*.test.mjs`; `npm run bundle`. 로컬 API 시험은 B 소유 백업 복원 성공, A/비로그인/심판 인증 거부, 잘못된 ID·해시·오래된 미리보기 거부, A 메모와 기존 감사 기록 보존을 확인합니다. 실제 Vercel 복구는 서버 환경변수를 안전하게 설정하고 별도로 확인하기 전까지 미실행입니다.
-
 ## Supabase 학습용 테이블
 
 연결된 `defense` 프로젝트의 `public.vault_notes` 초기 네 샘플(`sort_order` 1–4)은 A 소유 세 건, B 소유 한 건으로 지정했습니다. 최근 재점검 때 추가 소유 메모 두 건도 확인했습니다. `owner_id uuid`에는 `auth.users` 외래키가 없습니다. RLS와 읽기·추가·수정·삭제 소유자 정책을 적용했습니다. 서버 API도 검증한 사용자 ID로 각 요청을 제한합니다.
