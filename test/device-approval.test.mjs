@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { createHash, generateKeyPairSync, randomBytes, sign as signData } from 'node:crypto';
 import test from 'node:test';
+import { readFileSync } from 'node:fs';
 import { createDeviceApiHandler } from '../api/device/[...path].mjs';
 import {
   createDeviceApprovalHandlers,
@@ -204,6 +205,26 @@ test('one catch-all device function dispatches the existing protected API paths'
 
   const unknown = await service.api.fetch(request('/api/device/unknown', 'GET'));
   assert.equal(unknown.status, 404);
+});
+
+test('nested device URLs rewrite to reachable handlers while retaining authentication', async () => {
+  const config = JSON.parse(readFileSync(new URL('../vercel.json', import.meta.url), 'utf8'));
+  const service = makeService(createDatabase());
+  const destinations = new Map();
+  for (const source of ['/api/device/register/options', '/api/device/status/verify']) {
+    const destination = config.rewrites?.find(item => item.source === source)?.destination;
+    assert.match(destination ?? '', /^\/api\/device\/[^/]+$/u, `${source} needs a one-segment destination`);
+    destinations.set(source, destination);
+    const denied = await service.api.fetch(request(destination, 'POST', {}));
+    assert.equal(denied.status, 401);
+  }
+  const options = await service.api.fetch(request(destinations.get('/api/device/register/options'),
+    'POST', {}, { Authorization: 'Bearer fixture-session' }));
+  assert.equal(options.status, 200);
+  assert.ok((await options.json()).publicKey.challenge);
+  const missingProof = await service.api.fetch(request(destinations.get('/api/device/status/verify'),
+    'POST', {}, { Authorization: 'Bearer fixture-session' }));
+  assert.equal(missingProof.status, 403);
 });
 
 test('registration creates a pending server record and status never treats it as approved', async () => {

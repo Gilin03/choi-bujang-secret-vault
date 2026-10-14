@@ -3,6 +3,16 @@
   "framework": null,
   "buildCommand": "npm run build",
   "outputDirectory": "public",
+  "rewrites": [
+    {
+      "source": "/api/device/register/options",
+      "destination": "/api/device/register-options"
+    },
+    {
+      "source": "/api/device/status/verify",
+      "destination": "/api/device/status-verify"
+    }
+  ],
   "headers": [
     {
       "source": "/(.*)",
