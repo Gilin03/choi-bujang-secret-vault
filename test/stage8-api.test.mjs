@@ -9,6 +9,7 @@ const userA = '11111111-1111-4111-8111-111111111111';
 const userB = '22222222-2222-4222-8222-222222222222';
 const teacherUser = '33333333-3333-4333-8333-333333333333';
 const noteA = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+const noteB = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const noticeA = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 
 function createDatabase({ ignoreOwnerFilters = false, includeOtherOwnerNote = false } = {}) {
@@ -16,7 +17,7 @@ function createDatabase({ ignoreOwnerFilters = false, includeOtherOwnerNote = fa
     vault_notes: [
       { id: noteA, owner_id: userA, title: 'A memo', content: 'A body' },
       ...(includeOtherOwnerNote
-        ? [{ id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', owner_id: userB,
+        ? [{ id: noteB, owner_id: userB,
           title: 'B memo', content: 'B body' }]
         : []),
     ],
@@ -92,6 +93,79 @@ function request(path, method = 'GET', authorization, body) {
     ...(body ? { body: JSON.stringify(body) } : {}),
   });
 }
+
+function vercelNoteRequest(path, id, method = 'GET', authorization, body) {
+  const value = request(path, method, authorization, body);
+  Object.defineProperty(value, 'query', { value: { id }, configurable: true });
+  return value;
+}
+
+test('note item GET uses Vercel request.query.id before its pathname fallback', async () => {
+  const { note, database } = makeHandlers({ includeOtherOwnerNote: true });
+
+  const response = await note.fetch(vercelNoteRequest(
+    `/api/notes/${noteB}?source=vercel`, noteA, 'GET', 'fixture-a'));
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { id: noteA, title: 'A memo', body: 'A body' });
+  assert.ok(database.calls.some(call => call.table === 'vault_notes'
+    && call.filters.some(([field, value]) => field === 'id' && value === noteA)));
+});
+
+test('note item GET keeps the pathname fallback when Vercel query ID is absent', async () => {
+  const { note } = makeHandlers();
+
+  const response = await note.fetch(request(`/api/notes/${noteA}`, 'GET', 'fixture-a'));
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { id: noteA, title: 'A memo', body: 'A body' });
+});
+
+test('note item query ID is UUID-validated and cannot make another pathname valid', async () => {
+  const { note, database } = makeHandlers();
+  const invalid = await note.fetch(vercelNoteRequest(
+    `/api/notes/${noteA}?source=vercel`, 'not-a-uuid', 'GET', 'fixture-a'));
+  const unrelated = await note.fetch(vercelNoteRequest(
+    `/api/other/${noteA}?source=vercel`, noteA, 'GET', 'fixture-a'));
+
+  assert.equal(invalid.status, 400);
+  assert.equal(unrelated.status, 404);
+  assert.equal(database.calls.length, 0);
+});
+
+test('Vercel item GET retains B own-note access and denies B access to A note', async () => {
+  const { note } = makeHandlers({ includeOtherOwnerNote: true });
+
+  const own = await note.fetch(vercelNoteRequest(
+    `/api/notes/${noteB}?source=vercel`, noteB,
+    'GET', 'fixture-b'));
+  const crossAccount = await note.fetch(vercelNoteRequest(
+    `/api/notes/${noteA}?source=vercel`, noteA, 'GET', 'fixture-b'));
+
+  assert.equal(own.status, 200);
+  assert.deepEqual(await own.json(), {
+    id: noteB, title: 'B memo', body: 'B body',
+  });
+  assert.equal(crossAccount.status, 404);
+  assert.deepEqual(await crossAccount.json(), { error: 'Note not found' });
+});
+
+test('Vercel item PUT and DELETE use the dynamic query ID', async () => {
+  const { note, database } = makeHandlers({ includeOtherOwnerNote: true });
+  const bNote = noteB;
+
+  const updated = await note.fetch(vercelNoteRequest(
+    `/api/notes/${noteA}?source=vercel`, bNote, 'PUT', 'fixture-b',
+    { title: 'Updated B', body: 'Updated B body' }));
+  const deleted = await note.fetch(vercelNoteRequest(
+    `/api/notes/${noteA}?source=vercel`, bNote, 'DELETE', 'fixture-b'));
+
+  assert.equal(updated.status, 200);
+  assert.deepEqual(await updated.json(), { id: bNote });
+  assert.equal(deleted.status, 204);
+  assert.equal(database.tables.vault_notes.some(row => row.id === bNote), false);
+  assert.equal(database.tables.vault_notes.find(row => row.id === noteA).content, 'A body');
+});
 
 function engineNoteRequest(subjectId, method = 'GET') {
   return {

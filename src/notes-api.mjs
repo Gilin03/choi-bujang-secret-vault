@@ -71,21 +71,18 @@ async function parseBody(request) {
   try { return await request.json(); } catch { return null; }
 }
 
-function requestId(request) {
+function noteRouteId(request, restore = false) {
   const url = new URL(request.url);
-  const match = /^\/api\/notes\/([^/]+)$/u.exec(url.pathname);
-  if (!match || url.search) return null;
-  try { return decodeURIComponent(match[1]); } catch { return ''; }
-}
-
-function restoreRequestId(request) {
-  const url = new URL(request.url);
-  const match = /^\/api\/notes\/([^/]+)\/restore$/u.exec(url.pathname);
+  const match = restore
+    ? /^\/api\/notes\/([^/]+)\/restore$/u.exec(url.pathname)
+    : /^\/api\/notes\/([^/]+)$/u.exec(url.pathname);
   if (!match) return null;
-  const routeId = request.query?.id ?? match[1];
-  if (typeof routeId !== 'string') return '';
-  if (request.query?.id !== undefined && request.query.id !== null) return routeId;
-  try { return decodeURIComponent(routeId); } catch { return ''; }
+  const queryId = request.query?.id;
+  if (queryId !== undefined && queryId !== null) {
+    return typeof queryId === 'string' ? queryId : '';
+  }
+  if (!restore && url.search) return null;
+  try { return decodeURIComponent(match[1]); } catch { return ''; }
 }
 
 function sha256(value) {
@@ -163,7 +160,7 @@ export function createNoteItemHandler({ env = process.env, createClient, verifyL
       }
       const auth = await authenticatedStudent(request, env, verifyLogin);
       if (auth.error) return auth.error;
-      const id = requestId(request);
+      const id = noteRouteId(request);
       if (id === null) return json({ error: 'Resource not found' }, 404);
       if (!UUID.test(id)) return json({ error: 'Invalid note ID' }, 400);
 
@@ -221,7 +218,7 @@ export function createNoteRestoreHandler({ env = process.env, createClient, veri
       const auth = await authenticatedStudent(request, env, verifyLogin);
       if (auth.error) return auth.error;
 
-      const id = restoreRequestId(request);
+      const id = noteRouteId(request, true);
       if (id === null) return json({ error: 'Resource not found' }, 404);
       if (!UUID.test(id)) return json({ error: 'Invalid note ID' }, 400);
 
