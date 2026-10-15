@@ -15,8 +15,8 @@ export function createOperationsHandler({ env = process.env, verifyLogin, create
     async fetch(request) {
       if (request.method !== 'GET') return json({ error: 'Method not allowed' }, 405);
       const query = new URL(request.url).searchParams;
-      const hasOnlyVercelPathMetadata = query.size === 1 && query.get('path') === 'operations';
-      if (query.size && !hasOnlyVercelPathMetadata) return json({ error: 'Resource not found' }, 404);
+      const hasOnlyVercelCatchAllMetadata = query.size === 1 && query.get('...path') === 'operations';
+      if (query.size && !hasOnlyVercelCatchAllMetadata) return json({ error: 'Resource not found' }, 404);
       if (!env.SUPABASE_URL || !env.SUPABASE_SECRET_KEY) return json({ error: 'Service unavailable' }, 503);
       let principal;
       try {
