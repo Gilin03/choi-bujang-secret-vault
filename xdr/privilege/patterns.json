@@ -1,0 +1,27 @@
+{
+  "schema": "aleph.xdr.patterns.v1",
+  "moduleKey": "privilege",
+  "patterns": [
+    {
+      "id": "administrator_group_addition",
+      "name": "관리자 그룹 추가",
+      "condition": "T1078 경보에서 administrators 그룹에 계정을 추가·재추가한 내용이 있고 규칙 수준이 10 이상이면 명확한 권한 변경으로 판단합니다.",
+      "evidence": "MITRE ATT&CK T1078: 기존 계정 자격 증명 악용은 권한 상승과 접근 통제 우회에 쓰일 수 있습니다.",
+      "source": "https://attack.mitre.org/techniques/T1078/"
+    },
+    {
+      "id": "unfamiliar_administrator_command",
+      "name": "처음 보는 관리자 명령",
+      "condition": "T1068 경보의 관리자 명령 또는 관리자 권한 전환이 처음 보는 주소·다른 계정 권한·새 관리자 세션과 함께 나타나고 규칙 수준이 10 이상이면 명확한 신호입니다. 반복이나 출처가 확인되지 않은 관리자 명령은 검토 경보로 둡니다.",
+      "evidence": "MITRE ATT&CK T1068: 소프트웨어 취약점 악용은 더 높은 권한으로 이어질 수 있습니다.",
+      "source": "https://attack.mitre.org/techniques/T1068/"
+    },
+    {
+      "id": "after_hours_privilege_use",
+      "name": "업무 시간 밖 권한 사용",
+      "condition": "경보 설명이 업무 시간 밖 또는 수업 시간 밖의 관리자 그룹 변경, 관리자 명령 또는 권한 전환을 명시하고 규칙 수준이 10 이상이면 명확한 신호입니다. 시간대는 설명에 있는 근거 없이 추정하지 않습니다.",
+      "evidence": "MITRE ATT&CK T1068 및 T1078: 권한 상승 악용과 기존 계정 사용을 함께 검토합니다.",
+      "source": "https://attack.mitre.org/techniques/T1068/"
+    }
+  ]
+}

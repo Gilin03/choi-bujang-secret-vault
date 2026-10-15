@@ -56,3 +56,9 @@ node scripts/xdr-run.mjs brute-force
 `npm run xdr:run -- persistence`는 `persistence.json`의 24개 가상 Wazuh 경보를 판단합니다. 확인용 `persistence/read-alerts.mjs`는 시각·출발 주소·계정·규칙 수준·설명만 추리고 비밀처럼 보이는 값을 가립니다. 단독 `persistence/decide.mjs`는 MITRE ATT&CK T1543·T1053 신호를 자체 판정하며 파일·네트워크·패키지를 불러오지 않습니다. 서명 없는 신규·미등록 서비스, 낯선 예약 작업, 시작 폴더·작업이 같은 임시 파일을 가리키는 고위험 조합만 block 후보입니다. 구체성이 부족한 지속성 경보는 alert, 정상 이벤트는 record입니다.
 
 실행기는 `persistence/result.json`, 15분 만료와 근거 경보 ID가 있는 `persistence/deny-rules.json`을 만들고, block·alert의 안전한 메타데이터만 `xdr/alerts.log`에 중복 없이 추가합니다. fixture 출발 주소를 기존 `src/decider-with-xdr.mjs` 게이트에 넣어 block·alert·record 건수, 게이트 deny·continue, 정상 차단 건수를 출력합니다. 이는 연습 fixture 평가이며 실제 Wazuh 수집·서비스 격리·예약 작업 제거·운영 ZTNA 차단은 아닙니다.
+
+## 권한 상승 privilege 연습
+
+`npm run xdr:run -- privilege`는 `xdr/fixtures/privilege.json`의 26개 가상 Wazuh 형식 경보를 판단합니다. 확인용 `privilege/read-alerts.mjs`는 시각·출발 주소·계정·규칙 수준·설명만 추려 비밀처럼 보이는 문자열을 가립니다. `patterns.json`과 단독 실행형 `decide.mjs`는 관리자 그룹 추가, 처음 보는 관리자 명령·권한 전환, 설명에 명시된 업무 시간 밖 권한 사용만 MITRE ATT&CK T1068·T1078 근거와 함께 다룹니다. `decide.mjs`에는 import, 파일·네트워크 접근이 없습니다. 명확한 고위험 신호는 block, 덜 구체적인 신호는 alert, 나머지는 record입니다.
+
+실행하면 `privilege/result.json`, 15분 만료와 근거 경보 ID가 포함된 `privilege/deny-rules.json`, 중복 방지 `xdr/alerts.log`를 갱신합니다. 응답 모듈은 경보의 실제 규칙·주소·설명을 다시 검증한 block 후보만 기존 `src/decider-with-xdr.mjs` 게이트에 전달할 형식으로 만듭니다. 로그에는 경보 ID·행동·확신도·고정 사유만 남기며 계정·주소·원본 설명은 기록하지 않습니다. 실행 결과의 XDR gate `deny`·`continue`와 정상 이벤트 차단 건수도 출력합니다. 이는 fixture 점검이며 실제 Wazuh 수집이나 운영 트래픽 차단은 아닙니다.

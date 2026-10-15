@@ -1,0 +1,96 @@
+{
+  "schema": "aleph.xdr.deny-rules.v1",
+  "generatedAt": "2026-10-15T02:19:46.548Z",
+  "rules": [
+    {
+      "id": "xdr-privilege-pv-01",
+      "action": "deny",
+      "sourceAddress": "203.0.113.11",
+      "createdAt": "2026-10-15T02:19:46.548Z",
+      "expiresAt": "2026-10-15T02:34:46.548Z",
+      "evidenceAlertId": "pv-01",
+      "confidence": 0.9,
+      "reason": "관리자 그룹 추가: privilege-escalation signal"
+    },
+    {
+      "id": "xdr-privilege-pv-02",
+      "action": "deny",
+      "sourceAddress": "203.0.113.11",
+      "createdAt": "2026-10-15T02:19:46.548Z",
+      "expiresAt": "2026-10-15T02:34:46.548Z",
+      "evidenceAlertId": "pv-02",
+      "confidence": 0.9,
+      "reason": "처음 보는 관리자 명령: privilege-escalation signal"
+    },
+    {
+      "id": "xdr-privilege-pv-03",
+      "action": "deny",
+      "sourceAddress": "198.51.100.11",
+      "createdAt": "2026-10-15T02:19:46.548Z",
+      "expiresAt": "2026-10-15T02:34:46.548Z",
+      "evidenceAlertId": "pv-03",
+      "confidence": 0.9,
+      "reason": "업무 시간 밖 권한 사용: privilege-escalation signal"
+    },
+    {
+      "id": "xdr-privilege-pv-04",
+      "action": "deny",
+      "sourceAddress": "192.0.2.11",
+      "createdAt": "2026-10-15T02:19:46.548Z",
+      "expiresAt": "2026-10-15T02:34:46.548Z",
+      "evidenceAlertId": "pv-04",
+      "confidence": 0.9,
+      "reason": "관리자 그룹 추가: privilege-escalation signal"
+    },
+    {
+      "id": "xdr-privilege-pv-05",
+      "action": "deny",
+      "sourceAddress": "203.0.113.17",
+      "createdAt": "2026-10-15T02:19:46.548Z",
+      "expiresAt": "2026-10-15T02:34:46.548Z",
+      "evidenceAlertId": "pv-05",
+      "confidence": 0.9,
+      "reason": "관리자 그룹 추가: privilege-escalation signal"
+    },
+    {
+      "id": "xdr-privilege-pv-06",
+      "action": "deny",
+      "sourceAddress": "198.51.100.17",
+      "createdAt": "2026-10-15T02:19:46.548Z",
+      "expiresAt": "2026-10-15T02:34:46.548Z",
+      "evidenceAlertId": "pv-06",
+      "confidence": 0.9,
+      "reason": "처음 보는 관리자 명령: privilege-escalation signal"
+    },
+    {
+      "id": "xdr-privilege-pv-07",
+      "action": "deny",
+      "sourceAddress": "192.0.2.17",
+      "createdAt": "2026-10-15T02:19:46.548Z",
+      "expiresAt": "2026-10-15T02:34:46.548Z",
+      "evidenceAlertId": "pv-07",
+      "confidence": 0.9,
+      "reason": "업무 시간 밖 권한 사용: privilege-escalation signal"
+    },
+    {
+      "id": "xdr-privilege-pv-08",
+      "action": "deny",
+      "sourceAddress": "203.0.113.27",
+      "createdAt": "2026-10-15T02:19:46.548Z",
+      "expiresAt": "2026-10-15T02:34:46.548Z",
+      "evidenceAlertId": "pv-08",
+      "confidence": 0.9,
+      "reason": "처음 보는 관리자 명령: privilege-escalation signal"
+    },
+    {
+      "id": "xdr-privilege-pv-09",
+      "action": "deny",
+      "sourceAddress": "198.51.100.27",
+      "createdAt": "2026-10-15T02:19:46.548Z",
+      "expiresAt": "2026-10-15T02:34:46.548Z",
+      "evidenceAlertId": "pv-09",
+      "confidence": 0.9,
+      "reason": "관리자 그룹 추가: privilege-escalation signal"
+    }
+  ]
+}

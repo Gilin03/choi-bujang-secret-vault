@@ -220,5 +220,6 @@ git ls-tree -r --name-only origin/main | Select-String '(^|/)data\.json$'
 - `xdr/known-cve/`는 CVE-2021-44228 모양의 JNDI 요청을 고위험·유효 주소와 함께 확인할 때만 block하고, 약한 CVE/T1190·점검 도구 흔적은 alert, 정상 이벤트는 record로 분류합니다. 확인용 reader는 허용된 다섯 필드만 마스킹해 내보내며 단독 `decide.mjs`는 외부 모듈을 불러오지 않습니다.
 - `npm run xdr:run -- known-cve`는 24건 결과, 15분 만료·근거 경보 ID가 있는 차단 후보, 중복 방지 알림 로그를 만들고 기존 XDR 사전 차단 게이트를 fixture 출발 주소로 확인합니다. 이는 학습용 fixture 검증이며 실제 Wazuh 수집이나 운영 차단은 아닙니다.
 - `npm run xdr:run -- persistence`는 24건의 가상 서비스·예약 작업 경보를 T1543·T1053 패턴으로 분류합니다. 고위험의 구체적인 지속성 신호만 만료가 있는 차단 후보로 만들고, 애매한 신호는 알림, 정상 이벤트는 기록으로 둡니다. `xdr/persistence/result.json`, `deny-rules.json`, `xdr/alerts.log`를 갱신하고 기존 XDR 게이트 결과를 출력합니다. 운영 Wazuh 수집이나 실제 PC 격리를 의미하지 않습니다.
+- `npm run xdr:run -- privilege`는 26건의 가상 권한 상승 경보를 관리자 그룹 추가·처음 보는 관리자 명령·업무 시간 밖 권한 사용 패턴으로 분류합니다. `decide.mjs`는 단독 계산 모듈이고, 차단 응답에는 만료 시각과 근거 경보 ID를 둡니다. 결과·차단 후보·안전한 알림 메타데이터를 갱신하고 기존 XDR 게이트를 fixture 주소로 확인합니다. 실제 Wazuh 수집이나 운영 차단은 아닙니다.
 - 이 게이트는 fixture 실행기의 연결입니다. 운영 요청 계약에는 출발 IP가 없으므로 실제 서비스 트래픽의 Wazuh 수집이나 운영 ZTNA 차단이 연결된 것은 아닙니다.
 먼저 [AGENTS.md](AGENTS.md)를 읽고 한 번에 한 단계만 요청하세요. `src/decider.mjs`와 `src/detect.mjs`의 로컬 시험은 가상 요청·사건 연습이며 반 엔진이나 운영 심판의 결과가 아닙니다. `aleph.defense.submission.v2` 제출 묶음 계약은 `scripts/bundle.mjs`가 관리합니다.
