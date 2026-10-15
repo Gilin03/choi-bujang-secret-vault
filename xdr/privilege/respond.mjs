@@ -104,6 +104,14 @@ export async function writeResponseArtifacts({ root, alerts, decisions, now = ne
 
 async function appendAlertLog(root, alerts, decisions) {
   const logPath = join(root, ALERTS_LOG);
+  const currentActions = new Map();
+  for (let index = 0; index < alerts.length; index += 1) {
+    const alert = alerts[index];
+    const action = decisions[index]?.action;
+    if (validAlertId(alert) && ['block', 'alert', 'record'].includes(action)) {
+      currentActions.set(alert.id, action);
+    }
+  }
   let existing = '';
   try {
     existing = await readFile(logPath, 'utf8');
@@ -112,15 +120,18 @@ async function appendAlertLog(root, alerts, decisions) {
   }
 
   const known = new Set();
+  const preserved = [];
   for (const line of existing.split(/\r?\n/u)) {
     try {
       const item = JSON.parse(line);
-      if (item.moduleKey === MODULE_KEY && typeof item.alertId === 'string'
-          && ['block', 'alert'].includes(item.action)) {
-        known.add(`${item.alertId}:${item.action}`);
+      if (item.moduleKey === MODULE_KEY && currentActions.has(item.alertId)) {
+        const action = currentActions.get(item.alertId);
+        if (item.action !== action || !['block', 'alert'].includes(action)) continue;
+        known.add(`${item.alertId}:${action}`);
       }
+      preserved.push(line);
     } catch {
-      // Keep existing lines without interpreting their contents.
+      preserved.push(line);
     }
   }
 
@@ -147,7 +158,7 @@ async function appendAlertLog(root, alerts, decisions) {
     known.add(key);
   }
 
-  const lines = [existing.trimEnd(), ...additions].filter(Boolean);
+  const lines = [preserved.join('\n').trimEnd(), ...additions].filter(Boolean);
   await mkdir(join(root, 'xdr'), { recursive: true });
   await writeFile(logPath, lines.length ? `${lines.join('\n')}\n` : '', 'utf8');
 }
