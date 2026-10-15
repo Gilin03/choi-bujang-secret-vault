@@ -176,6 +176,23 @@ test('deployed operations route gates unapproved and new sessions before returni
   assert.equal(write.status, 404);
 });
 
+test('operations route accepts Vercel catch-all path metadata but rejects client queries', async () => {
+  const fixture = dbFixture({
+    vault_session_approvals: [{ owner_id: user, session_id: session, status: 'approved' }],
+    vault_operation_events: [],
+    vault_note_backups: [],
+  });
+  const api = createSessionApprovalApiHandler({ env, createClient: () => fixture.client, verifyLogin: verified });
+  const response = await api.fetch(new Request(`${req().url}?path=operations`));
+
+  assert.equal(response.status, 200);
+  assert.deepEqual((await response.json()).api.summary, { total: 0, allowed: 0, rejected: 0, errors: 0 });
+
+  const unexpected = await api.fetch(new Request(`${req().url}?path=operations&scope=all`));
+  assert.equal(unexpected.status, 404);
+  assert.deepEqual(await unexpected.json(), { error: 'Resource not found' });
+});
+
 test('response from another deployment is not attributed to the checked commit', async () => {
   const results = await runOperationChecks({ expectedCommit: 'a'.repeat(40), plan: [{
     id: 'normal', stage: 2, kind: 'normal', method: 'GET', path: '/api/my/notes', expectedStatus: 200,
