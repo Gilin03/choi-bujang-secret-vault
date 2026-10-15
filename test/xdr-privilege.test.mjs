@@ -71,14 +71,14 @@ test('standalone privilege decision separates clear, ambiguous, and normal fixtu
 
   assert.deepEqual(actions, {
     block: ['pv-01', 'pv-02', 'pv-03', 'pv-04', 'pv-05', 'pv-06', 'pv-07', 'pv-08', 'pv-09'],
-    alert: ['pv-10', 'pv-14', 'pv-16'],
-    record: ['pv-11', 'pv-12', 'pv-13', 'pv-15', 'pv-17', 'pv-18', 'pv-19', 'pv-20', 'pv-21', 'pv-22', 'pv-23', 'pv-24', 'pv-25', 'pv-26'],
+    alert: ['pv-10', 'pv-11', 'pv-12', 'pv-13', 'pv-14', 'pv-15', 'pv-16', 'pv-17'],
+    record: ['pv-18', 'pv-19', 'pv-20', 'pv-21', 'pv-22', 'pv-23', 'pv-24', 'pv-25', 'pv-26'],
   });
   assert.match(decisions[0].reason, /^관리자 그룹 추가:/u);
   assert.match(decisions[1].reason, /^처음 보는 관리자 명령:/u);
   assert.match(decisions[2].reason, /^업무 시간 밖 권한 사용:/u);
   assert.match(decisions[6].reason, /^업무 시간 밖 권한 사용:/u);
-  assert.equal(decisions[11].confidence, 0.1, 'routine admin use from a usual address is a record, not an alert');
+  assert.equal(decisions[11].confidence, 0.65, 'a low-confidence T1068 admin command remains an alert');
   assert.ok(decisions.every(decision => Object.keys(decision).sort().join(',') === 'action,confidence,reason'));
   assert.ok(decisions.every(decision => ['block', 'alert', 'record'].includes(decision.action)
     && Number.isFinite(decision.confidence) && decision.confidence >= 0 && decision.confidence <= 1
@@ -105,14 +105,19 @@ test('privilege response writes expiring evidence rules and deduplicated safe al
   const tempRoot = await mkdtemp(join(tmpdir(), 'xdr-privilege-respond-'));
   try {
     const staleDecisions = decisions.slice();
-    staleDecisions[11] = { action: 'alert', confidence: 0.65, reason: '처음 보는 관리자 명령: 이전 분류' };
+    staleDecisions[17] = { action: 'alert', confidence: 0.65, reason: '관리자 그룹 추가: 이전 분류' };
     await writeResponseArtifacts({ root: tempRoot, alerts: fixture.alerts, decisions: staleDecisions, now });
     const written = await writeResponseArtifacts({ root: tempRoot, alerts: fixture.alerts, decisions, now });
     assert.equal(written.length, 9);
     const logPath = join(tempRoot, 'xdr', 'alerts.log');
     const firstLog = await readFile(logPath, 'utf8');
-    assert.equal(firstLog.trim().split(/\r?\n/u).length, 12);
-    assert.doesNotMatch(firstLog, /"alertId":"pv-12"/u);
+    assert.equal(firstLog.trim().split(/\r?\n/u).length, 17);
+    assert.doesNotMatch(firstLog, /"alertId":"pv-18"/u);
+    const logged = firstLog.trim().split(/\r?\n/u).map(line => JSON.parse(line));
+    assert.deepEqual(logged.map(item => item.alertId), [
+      'pv-01', 'pv-02', 'pv-03', 'pv-04', 'pv-05', 'pv-06', 'pv-07', 'pv-08', 'pv-09',
+      'pv-10', 'pv-11', 'pv-12', 'pv-13', 'pv-14', 'pv-15', 'pv-16', 'pv-17',
+    ]);
     assert.doesNotMatch(firstLog, /user01|203\.0\.113\.11|관리자 그룹에 추가|privilege-secret/);
     await writeResponseArtifacts({ root: tempRoot, alerts: fixture.alerts, decisions, now });
     assert.equal(await readFile(logPath, 'utf8'), firstLog);
@@ -144,7 +149,7 @@ test('privilege runner feeds deny candidates through the existing ZTNA gate and 
     await cp(join(root, 'scripts', 'fixture-7.mjs'), join(tempRoot, 'scripts', 'fixture-7.mjs'));
 
     const result = await runXdr({ root: tempRoot, moduleKey: 'privilege' });
-    assert.deepEqual(result.counts, { block: 9, alert: 3, record: 14 });
+    assert.deepEqual(result.counts, { block: 9, alert: 8, record: 9 });
     const gate = await evaluatePrivilegeGate({ root: tempRoot, now: new Date() });
     assert.deepEqual(gate, { deny: 9, continue: 17, normalDenied: 0 });
 

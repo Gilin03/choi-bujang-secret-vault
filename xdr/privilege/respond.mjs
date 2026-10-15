@@ -119,15 +119,12 @@ async function appendAlertLog(root, alerts, decisions) {
     if (error?.code !== 'ENOENT') throw error;
   }
 
-  const known = new Set();
   const preserved = [];
   for (const line of existing.split(/\r?\n/u)) {
     try {
       const item = JSON.parse(line);
       if (item.moduleKey === MODULE_KEY && currentActions.has(item.alertId)) {
-        const action = currentActions.get(item.alertId);
-        if (item.action !== action || !['block', 'alert'].includes(action)) continue;
-        known.add(`${item.alertId}:${action}`);
+        continue;
       }
       preserved.push(line);
     } catch {
@@ -141,8 +138,6 @@ async function appendAlertLog(root, alerts, decisions) {
     const decision = decisions[index];
     const name = patternFor(decision?.reason);
     if (!validAlertId(alert) || !name || !['block', 'alert'].includes(decision?.action)) continue;
-    const key = `${alert.id}:${decision.action}`;
-    if (known.has(key)) continue;
     const timestamp = typeof alert.timestamp === 'string' && Number.isFinite(Date.parse(alert.timestamp))
       ? new Date(alert.timestamp).toISOString()
       : '';
@@ -155,7 +150,6 @@ async function appendAlertLog(root, alerts, decisions) {
       confidence: decision.confidence,
       reason: `${name}: privilege signal reviewed`,
     }));
-    known.add(key);
   }
 
   const lines = [preserved.join('\n').trimEnd(), ...additions].filter(Boolean);

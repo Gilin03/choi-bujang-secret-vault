@@ -76,5 +76,10 @@
 {"schema":"aleph.xdr.alert.v1","moduleKey":"privilege","timestamp":"2026-09-27T06:02:18.000Z","alertId":"pv-08","action":"block","confidence":0.9,"reason":"처음 보는 관리자 명령: privilege signal reviewed"}
 {"schema":"aleph.xdr.alert.v1","moduleKey":"privilege","timestamp":"2026-09-27T06:33:07.000Z","alertId":"pv-09","action":"block","confidence":0.9,"reason":"관리자 그룹 추가: privilege signal reviewed"}
 {"schema":"aleph.xdr.alert.v1","moduleKey":"privilege","timestamp":"2026-09-27T00:26:14.000Z","alertId":"pv-10","action":"alert","confidence":0.65,"reason":"처음 보는 관리자 명령: privilege signal reviewed"}
+{"schema":"aleph.xdr.alert.v1","moduleKey":"privilege","timestamp":"2026-09-27T01:14:33.000Z","alertId":"pv-11","action":"alert","confidence":0.65,"reason":"관리자 그룹 추가: privilege signal reviewed"}
+{"schema":"aleph.xdr.alert.v1","moduleKey":"privilege","timestamp":"2026-09-27T01:47:09.000Z","alertId":"pv-12","action":"alert","confidence":0.65,"reason":"처음 보는 관리자 명령: privilege signal reviewed"}
+{"schema":"aleph.xdr.alert.v1","moduleKey":"privilege","timestamp":"2026-09-27T02:21:16.000Z","alertId":"pv-13","action":"alert","confidence":0.65,"reason":"관리자 그룹 추가: privilege signal reviewed"}
 {"schema":"aleph.xdr.alert.v1","moduleKey":"privilege","timestamp":"2026-09-27T03:06:48.000Z","alertId":"pv-14","action":"alert","confidence":0.65,"reason":"처음 보는 관리자 명령: privilege signal reviewed"}
+{"schema":"aleph.xdr.alert.v1","moduleKey":"privilege","timestamp":"2026-09-27T04:17:05.000Z","alertId":"pv-15","action":"alert","confidence":0.65,"reason":"관리자 그룹 추가: privilege signal reviewed"}
 {"schema":"aleph.xdr.alert.v1","moduleKey":"privilege","timestamp":"2026-09-27T05:07:22.000Z","alertId":"pv-16","action":"alert","confidence":0.65,"reason":"처음 보는 관리자 명령: privilege signal reviewed"}
+{"schema":"aleph.xdr.alert.v1","moduleKey":"privilege","timestamp":"2026-09-27T06:19:41.000Z","alertId":"pv-17","action":"alert","confidence":0.65,"reason":"관리자 그룹 추가: privilege signal reviewed"}

@@ -64,21 +64,21 @@
     },
     {
       "alertId": "pv-11",
-      "action": "record",
-      "confidence": 0.1,
-      "reason": "일치하는 권한 상승 패턴 없음"
+      "action": "alert",
+      "confidence": 0.65,
+      "reason": "관리자 그룹 추가: 명확한 차단 조건을 충족하지 않아 확인 필요"
     },
     {
       "alertId": "pv-12",
-      "action": "record",
-      "confidence": 0.1,
-      "reason": "일치하는 권한 상승 패턴 없음"
+      "action": "alert",
+      "confidence": 0.65,
+      "reason": "처음 보는 관리자 명령: 명확한 차단 조건을 충족하지 않아 확인 필요"
     },
     {
       "alertId": "pv-13",
-      "action": "record",
-      "confidence": 0.1,
-      "reason": "일치하는 권한 상승 패턴 없음"
+      "action": "alert",
+      "confidence": 0.65,
+      "reason": "관리자 그룹 추가: 명확한 차단 조건을 충족하지 않아 확인 필요"
     },
     {
       "alertId": "pv-14",
@@ -88,9 +88,9 @@
     },
     {
       "alertId": "pv-15",
-      "action": "record",
-      "confidence": 0.1,
-      "reason": "일치하는 권한 상승 패턴 없음"
+      "action": "alert",
+      "confidence": 0.65,
+      "reason": "관리자 그룹 추가: 명확한 차단 조건을 충족하지 않아 확인 필요"
     },
     {
       "alertId": "pv-16",
@@ -100,9 +100,9 @@
     },
     {
       "alertId": "pv-17",
-      "action": "record",
-      "confidence": 0.1,
-      "reason": "일치하는 권한 상승 패턴 없음"
+      "action": "alert",
+      "confidence": 0.65,
+      "reason": "관리자 그룹 추가: 명확한 차단 조건을 충족하지 않아 확인 필요"
     },
     {
       "alertId": "pv-18",
@@ -161,7 +161,7 @@
   ],
   "counts": {
     "block": 9,
-    "alert": 3,
-    "record": 14
+    "alert": 8,
+    "record": 9
   }
 }

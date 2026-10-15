@@ -51,7 +51,6 @@ export function decide(alert) {
   const adminCommand = /(?:관리자|권한)\s*명령/u.test(description);
   const privilegeTransition = /권한\s*상승|관리자\s*권한.{0,12}(?:바뀌|변경|전환)|세션이\s*관리자\s*권한으로\s*바뀌/u.test(description);
   const unfamiliar = /처음\s*(?:보|봅|본)|낯선|다른\s*계정의\s*권한|방금\s*관리자가\s*된/u.test(description);
-  const usualAddress = /평소\s*주소/u.test(description);
   const outsideHours = /(?:수업|업무|근무)(?:\s*시간)?\s*밖|업무처럼\s*보이지\s*않는\s*시각/u.test(description);
   const level = Number.isFinite(rule.level) ? rule.level : 0;
   const hasT1068 = hasMitre(rule, 'T1068');
@@ -61,9 +60,8 @@ export function decide(alert) {
   const firstSeenAdminActivity = (hasT1068 || hasT1078)
     && ((adminCommand && unfamiliar) || (privilegeTransition && unfamiliar));
   const afterHoursActivity = supportedTechnique && outsideHours && isPrivilegeActivity;
-  const ambiguousAdminActivity = hasT1068
-    && (adminCommand || privilegeTransition)
-    && !usualAddress;
+  const identityActivity = /관리자|권한|계정|그룹/u.test(description) || Boolean(normalizedGroup);
+  const taggedIdentityActivity = supportedTechnique && identityActivity;
 
   let pattern = null;
   if (afterHoursActivity) pattern = PATTERNS[2];
@@ -78,8 +76,8 @@ export function decide(alert) {
     };
   }
 
-  if (pattern || ambiguousAdminActivity) {
-    const reviewPattern = pattern ?? PATTERNS[1];
+  if (pattern || taggedIdentityActivity) {
+    const reviewPattern = pattern ?? (hasT1068 ? PATTERNS[1] : PATTERNS[0]);
     return {
       action: 'alert',
       confidence: ALERT_CONFIDENCE,
