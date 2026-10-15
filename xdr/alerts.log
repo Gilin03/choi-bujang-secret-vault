@@ -95,9 +95,11 @@
 {"schema":"aleph.xdr.alert.v1","moduleKey":"exfiltration","timestamp":"2026-09-27T07:01:05.000Z","alertId":"ex-10","action":"block","confidence":0.9,"reason":"high-confidence external transfer signal"}
 {"schema":"aleph.xdr.alert.v1","moduleKey":"exfiltration","timestamp":"2026-09-27T00:24:10.000Z","alertId":"ex-11","action":"alert","confidence":0.65,"reason":"external transfer signal requires review"}
 {"schema":"aleph.xdr.alert.v1","moduleKey":"exfiltration","timestamp":"2026-09-27T00:52:22.000Z","alertId":"ex-12","action":"alert","confidence":0.65,"reason":"external transfer signal requires review"}
+{"schema":"aleph.xdr.alert.v1","moduleKey":"exfiltration","timestamp":"2026-09-27T01:17:36.000Z","alertId":"ex-13","action":"alert","confidence":0.65,"reason":"external transfer signal requires review"}
 {"schema":"aleph.xdr.alert.v1","moduleKey":"exfiltration","timestamp":"2026-09-27T01:46:04.000Z","alertId":"ex-14","action":"alert","confidence":0.65,"reason":"external transfer signal requires review"}
 {"schema":"aleph.xdr.alert.v1","moduleKey":"exfiltration","timestamp":"2026-09-27T02:19:13.000Z","alertId":"ex-15","action":"alert","confidence":0.65,"reason":"external transfer signal requires review"}
 {"schema":"aleph.xdr.alert.v1","moduleKey":"exfiltration","timestamp":"2026-09-27T03:13:29.000Z","alertId":"ex-16","action":"alert","confidence":0.65,"reason":"external transfer signal requires review"}
 {"schema":"aleph.xdr.alert.v1","moduleKey":"exfiltration","timestamp":"2026-09-27T04:21:07.000Z","alertId":"ex-17","action":"alert","confidence":0.65,"reason":"external transfer signal requires review"}
+{"schema":"aleph.xdr.alert.v1","moduleKey":"exfiltration","timestamp":"2026-09-27T05:12:44.000Z","alertId":"ex-18","action":"alert","confidence":0.65,"reason":"external transfer signal requires review"}
 {"schema":"aleph.xdr.alert.v1","moduleKey":"exfiltration","timestamp":"2026-09-27T06:06:18.000Z","alertId":"ex-19","action":"alert","confidence":0.65,"reason":"external transfer signal requires review"}
 {"schema":"aleph.xdr.alert.v1","moduleKey":"exfiltration","timestamp":"2026-09-27T06:55:02.000Z","alertId":"ex-20","action":"alert","confidence":0.65,"reason":"external transfer signal requires review"}

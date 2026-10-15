@@ -51,7 +51,7 @@ export function decide(alert) {
   const supportedTechnique = hasTechnique(rule);
   const outbound = bytes > 0 && Boolean(destination)
     && !/(?:전송은\s*아직\s*없|전송이\s*실패|실패\s*\d+건)/u.test(description);
-  const firstSeenDestination = /처음\s*보는\s*(?:목적지|주소|곳)|낯선\s*(?:목적지|주소)|평소와\s*다른\s*주소|다른\s*주소/u.test(description);
+  const firstSeenDestination = /처음\s*보는\s*(?:목적지|주소|곳)|목적지(?:는|가)?\s*처음\s*봅니다?|낯선\s*(?:목적지|주소)|평소와\s*다른\s*주소|다른\s*주소/u.test(description);
   const offHours = /(?:수업|업무|근무)(?:\s*시간)?\s*밖/u.test(description);
   const archive = /압축\s*파일|메모\s*묶음|묶음|자료실\s*전체/u.test(description);
   const repeatedOrAlternate = /반복|\d+번|연속|쓰지\s*않던\s*포트|명령\s*통로|전체가/u.test(description)
@@ -77,12 +77,23 @@ export function decide(alert) {
     };
   }
 
-  const ambiguousTransfer = supportedTechnique
+  const archivePreparation = supportedTechnique
     && level >= 5
-    && outbound
-    && /전송|나갔|보냈|반출|유출|압축|명령\s*통로|처음\s*보는|평소와\s*다른|이상|늘었|일부만/u.test(description);
-  if (ambiguousTransfer) {
-    const pattern = offHours && archive ? PATTERNS[1] : PATTERNS[0];
+    && archive
+    && /만들|생성/u.test(description)
+    && /외부\s*전송은\s*아직\s*없/u.test(description);
+  const failedNewDestinationAttempt = supportedTechnique
+    && level >= 5
+    && firstSeenDestination
+    && Boolean(destination)
+    && /전송이\s*실패|실패\s*\d+건/u.test(description);
+  const ambiguousExfiltrationSignal = supportedTechnique
+    && level >= 5
+    && ((outbound && /전송|나갔|보냈|반출|유출|압축|명령\s*통로|처음\s*보는|평소와\s*다른|이상|늘었|일부만/u.test(description))
+      || archivePreparation
+      || failedNewDestinationAttempt);
+  if (ambiguousExfiltrationSignal) {
+    const pattern = archivePreparation || (offHours && archive) ? PATTERNS[1] : PATTERNS[0];
     return {
       action: 'alert',
       confidence: ALERT_CONFIDENCE,
