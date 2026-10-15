@@ -28,12 +28,15 @@ export async function runAttackChecks(config) {
     }
   }
 
-  const apiResponse = await request('/api/notes');
+  // The judge supplied no received-request evidence for these Stage 12 IDs.
+  // Keep earlier-stage self-checks, but don't turn uncorrelated traffic into observations.
+  const runAnonymousChecks = config.step < 12;
+  const apiResponse = runAnonymousChecks ? await request('/api/notes') : null;
   const apiObserved = apiResponse
     ? `비로그인 GET /api/notes HTTP ${apiResponse.status}${apiResponse.status === 401 ? ', 인증 거부 확인' : ', 인증 없이 거부되지 않음'}`
     : 'not_run';
 
-  const staticResponse = await request('/data.json');
+  const staticResponse = runAnonymousChecks ? await request('/data.json') : null;
   let staticObserved = staticResponse
     ? `비로그인 GET /data.json HTTP ${staticResponse.status}`
     : 'not_run';
@@ -51,7 +54,7 @@ export async function runAttackChecks(config) {
     }
   }
 
-  const sessionStatusResponse = await request('/api/session-approval/status');
+  const sessionStatusResponse = runAnonymousChecks ? await request('/api/session-approval/status') : null;
   const sessionStatusObserved = sessionStatusResponse
     ? `비로그인 GET /api/session-approval/status HTTP ${sessionStatusResponse.status}${sessionStatusResponse.status === 401 ? ', 인증 거부 확인' : ', 인증 없이 거부되지 않음'}`
     : 'not_run';

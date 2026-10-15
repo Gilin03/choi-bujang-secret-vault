@@ -20,8 +20,8 @@
 - 8단계 `src/resource-zones.mjs`는 명시적 자기 목록, 메모 추가, 메모 단건 읽기·수정·삭제 경로를 분류합니다. 판정기는 사용자 메모 소유자를 추정하지 않으며, 최종 메모 API가 검증된 사용자와 저장된 `owner_id`를 대조합니다. 공지 API는 저장된 강사 권한을 별도로 확인합니다.
 - 9단계 `src/detect.mjs`는 `docs/DETECT_EVENTS.md` 계약의 시각·메서드·가명 `identity.sub`만 읽습니다. 같은 가명 주체의 GET이 임의의 10분 구간에서 120건을 넘으면 `propose_revocation`을 제안하고, 실제 접근 회수는 수행하지 않습니다.
 - 로컬 점검: `node --test test/auth-proxy.test.mjs`, `npm run test:r5`, `npm run test:stage3`, `npm run build -- --local`, `npm run decider:test`, `npm run fixture:7`, `node --test test/decider-stage7.test.mjs`, `npm run test:stage8`, `npm run detect:test`, `node --test test/detect-stage9.test.mjs`.
-- 저장점 커밋과 실제 배포가 끝난 뒤 `npm run bundle`을 실행하면 실제 비로그인 요청의 상태만 제출 묶음에 기록합니다. 이 결과는 학생의 자체 점검이며 심판 판정이 아닙니다. A 계정의 정상 로그인과 메모 CRUD는 웹 화면에서 별도로 확인해야 합니다. `bundle-notes.json`과 `artifacts/submission.json`은 커밋하지 않습니다.
-- 공개 HTTPS GET/HEAD 점검에서 HTTP 응답을 받지 못한 항목은 기대값을 유지하고 `observed: "not_run"`으로 기록합니다. 미실행 결과에는 요청 ID·확인 시각이 없으며 성공·거부 집계에 포함하지 않습니다.
+- 저장점 커밋과 실제 배포가 끝난 뒤 `npm run bundle`을 실행합니다. 이 결과는 학생의 자체 점검이며 심판 판정이 아닙니다. A 계정의 정상 로그인과 메모 CRUD는 웹 화면에서 별도로 확인해야 합니다. `bundle-notes.json`과 `artifacts/submission.json`은 커밋하지 않습니다.
+- Stage 12 bundle은 심판 수신 기록이 없는 `anonymous_note_read`, `static_note_exposure`, `anonymous_session_approval_status` 요청을 보내지 않고 기대값을 유지한 채 `observed: "not_run"`으로 기록합니다. 요청 ID·확인 시각이 없는 미실행은 성공·거부 집계에 포함하지 않습니다. 앞 단계의 실제 GET/HEAD 점검은 응답을 받은 경우에만 그 HTTP 결과를 기록합니다.
 
 ## 12단계 탈환 작전실 · 설치와 재현
 
