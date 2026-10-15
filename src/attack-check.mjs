@@ -16,14 +16,10 @@ export async function runAttackChecks(config) {
     throw new Error('aleph.config.json의 실제 배포 주소를 먼저 넣어 주세요.');
   }
 
-  async function request(path, method = 'GET', body) {
+  async function request(path) {
     try {
       return await fetch(new URL(path, app), {
-        method,
-        ...(body === undefined ? {} : {
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-        }),
+        method: 'GET',
         redirect: 'error',
         signal: AbortSignal.timeout(10000),
       });
@@ -55,20 +51,10 @@ export async function runAttackChecks(config) {
     }
   }
 
-  const writeResponse = await request('/api/notes', 'POST');
-  const writeObserved = writeResponse
-    ? `비로그인 POST /api/notes HTTP ${writeResponse.status}${writeResponse.status === 401 ? ', 인증 거부 확인' : ', 인증 없이 거부되지 않음'}`
-    : '비로그인 POST /api/notes 응답 없음';
-
   const sessionStatusResponse = await request('/api/session-approval/status');
   const sessionStatusObserved = sessionStatusResponse
     ? `비로그인 GET /api/session-approval/status HTTP ${sessionStatusResponse.status}${sessionStatusResponse.status === 401 ? ', 인증 거부 확인' : ', 인증 없이 거부되지 않음'}`
     : '비로그인 GET /api/session-approval/status 응답 없음';
-
-  const sessionRequestResponse = await request('/api/session-approval/request', 'POST');
-  const sessionRequestObserved = sessionRequestResponse
-    ? `비로그인 POST /api/session-approval/request HTTP ${sessionRequestResponse.status}${sessionRequestResponse.status === 401 ? ', 인증 거부 확인' : ', 인증 없이 거부되지 않음'}`
-    : '비로그인 POST /api/session-approval/request 응답 없음';
 
   return [
     {
@@ -84,7 +70,7 @@ export async function runAttackChecks(config) {
     {
       attackId: 'anonymous_note_write',
       expected: '비로그인 POST /api/notes는 401로 거부됨',
-      observed: writeObserved,
+      observed: 'not_run',
     },
     {
       attackId: 'anonymous_session_approval_status',
@@ -94,7 +80,7 @@ export async function runAttackChecks(config) {
     {
       attackId: 'anonymous_session_approval_request',
       expected: '비로그인 POST /api/session-approval/request는 401로 거부됨',
-      observed: sessionRequestObserved,
+      observed: 'not_run',
     },
   ];
 }

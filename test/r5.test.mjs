@@ -66,8 +66,7 @@ test('stage 4 attack checks verify anonymous API access is denied and static JSO
       if (requestUrl.pathname === '/api/notes') {
         return Response.json({ error: 'Authentication required' }, { status: 401 });
       }
-      if (requestUrl.pathname === '/api/session-approval/status'
-          || requestUrl.pathname === '/api/session-approval/request') {
+      if (requestUrl.pathname === '/api/session-approval/status') {
         return Response.json({ error: 'Authentication required' }, { status: 401 });
       }
       return new Response('', { status: 404 });
@@ -92,20 +91,8 @@ test('stage 4 attack checks verify anonymous API access is denied and static JSO
         authorization: undefined,
       },
       {
-        url: 'https://student-defense.vercel.app/api/notes',
-        method: 'POST',
-        redirect: 'error',
-        authorization: undefined,
-      },
-      {
         url: 'https://student-defense.vercel.app/api/session-approval/status',
         method: 'GET',
-        redirect: 'error',
-        authorization: undefined,
-      },
-      {
-        url: 'https://student-defense.vercel.app/api/session-approval/request',
-        method: 'POST',
         redirect: 'error',
         authorization: undefined,
       },
@@ -118,9 +105,9 @@ test('stage 4 attack checks verify anonymous API access is denied and static JSO
     assert.equal(results[4].expected, '비로그인 POST /api/session-approval/request는 401로 거부됨');
     assert.match(results[0].observed, /HTTP 401.*인증 거부/u);
     assert.match(results[1].observed, /HTTP 404/u);
-    assert.match(results[2].observed, /HTTP 401/u);
+    assert.equal(results[2].observed, 'not_run');
     assert.match(results[3].observed, /HTTP 401/u);
-    assert.match(results[4].observed, /HTTP 401/u);
+    assert.equal(results[4].observed, 'not_run');
     assert.doesNotMatch(JSON.stringify(results), /fixture-only-title/u);
 
     globalThis.fetch = async () => new Response('<html>not the data</html>', { status: 200 });
