@@ -25,9 +25,9 @@ export function createOperationsPanel({ api, getSession }) {
       check.stage, check.kind === 'normal' ? '정상' : '금지', check.label,
       check.path ? `${check.method} ${check.path}` : check.requestText,
       check.expectedStatus ? `HTTP ${check.expectedStatus}${check.expectedJson ? ' / approved' : ''}` : check.expectedText,
-      check.actualStatus ? `HTTP ${check.actualStatus}` : '미실행 / 응답 없음',
-      stateLabels[check.state], check.requestId || '서버 ID 미제공',
-      check.checkedAt ? `${stamp(check.checkedAt)} (${check.clockSource === 'server' ? '서버' : '클라이언트'})` : '미실행',
+      check.actualStatus ? `HTTP ${check.actualStatus}` : '미실행',
+      stateLabels[check.state], check.requestId || '',
+      check.checkedAt ? `${stamp(check.checkedAt)} (${check.clockSource === 'server' ? '서버' : '클라이언트'})` : '',
       check.recorded ? '서버 DB 기록됨' : 'DB 기록 없음', check.note,
     ])));
   }

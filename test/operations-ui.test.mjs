@@ -29,8 +29,24 @@ function mount(t, api) {
   const panel = createOperationsPanel({ api, getSession: async () => ({ access_token: 'fixture-memory-only' }) });
   return { panel, get: selector => elements.get(selector),
     click: selector => elements.get(selector).listeners.get('click')(),
-    checkStates: () => elements.get('#operation-checks').children.map(row => row.children[6].textContent) };
+    checkStates: () => elements.get('#operation-checks').children.map(row => row.children[6].textContent),
+    checks: () => elements.get('#operation-checks').children };
 }
+
+test('unrun Stage 12 checks show 미실행 with no request ID or timestamp', async t => {
+  const ui = mount(t, async () => evidence(A));
+  await ui.click('#show-operations');
+  for (const label of ['공개 자료 파일 접근', '비로그인 목록 접근', '인증 없이 승인 상태 조회']) {
+    const row = ui.checks().find(item => item.children[2].textContent === label);
+    assert.ok(row, `missing check row: ${label}`);
+    assert.equal(row.children[5].textContent, '미실행');
+    assert.equal(row.children[6].textContent, '미실행');
+    assert.equal(row.children[7].textContent, '');
+    assert.equal(row.children[8].textContent, '');
+  }
+  assert.equal(ui.get('#operations-summary').children[0].children[1].textContent,
+    '최근 본인 0건 · 허용 0 · 거부 0 · 서버 오류 0');
+});
 
 test('stale refresh rejection cannot erase a new session evidence or disable its export', async t => {
   let rejectOld;

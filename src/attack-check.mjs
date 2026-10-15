@@ -31,12 +31,12 @@ export async function runAttackChecks(config) {
   const apiResponse = await request('/api/notes');
   const apiObserved = apiResponse
     ? `비로그인 GET /api/notes HTTP ${apiResponse.status}${apiResponse.status === 401 ? ', 인증 거부 확인' : ', 인증 없이 거부되지 않음'}`
-    : '비로그인 GET /api/notes 응답 없음';
+    : 'not_run';
 
   const staticResponse = await request('/data.json');
   let staticObserved = staticResponse
     ? `비로그인 GET /data.json HTTP ${staticResponse.status}`
-    : '비로그인 GET /data.json 응답 없음';
+    : 'not_run';
   if (staticResponse?.ok) {
     try {
       const data = await staticResponse.json();
@@ -54,7 +54,7 @@ export async function runAttackChecks(config) {
   const sessionStatusResponse = await request('/api/session-approval/status');
   const sessionStatusObserved = sessionStatusResponse
     ? `비로그인 GET /api/session-approval/status HTTP ${sessionStatusResponse.status}${sessionStatusResponse.status === 401 ? ', 인증 거부 확인' : ', 인증 없이 거부되지 않음'}`
-    : '비로그인 GET /api/session-approval/status 응답 없음';
+    : 'not_run';
 
   return [
     {

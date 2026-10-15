@@ -130,11 +130,13 @@ test('check runner measures real HTTP status and retains missing prerequisites a
     const status = options.headers.get('authorization') ? 200 : 401;
     return new Response('do not read body', { status, headers: { 'x-request-id': '11111111-1111-4111-8111-111111111111', 'x-checked-at': '2026-10-14T01:00:00Z' } });
   } });
-  assert.deepEqual(results.map(row => row.state), ['matched', 'matched', 'unexecuted', 'error']);
+  assert.deepEqual(results.map(row => row.state), ['matched', 'matched', 'unexecuted', 'unexecuted']);
   assert.equal(results[0].actualStatus, 200);
   assert.equal(results[1].actualStatus, 401);
   assert.equal(results[2].requestId, null);
   assert.equal(results[3].actualStatus, null);
+  assert.equal(results[3].requestId, null);
+  assert.equal(results[3].checkedAt, null);
   assert.equal(calls[1].options.headers.has('authorization'), false);
   assert.equal(JSON.stringify(results).includes('private raw network failure'), false);
   assert.equal(JSON.stringify(results).includes('do not read body'), false);

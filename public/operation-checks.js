@@ -78,8 +78,7 @@ export async function runOperationChecks({ plan = CHECK_PLAN, token, fetchImpl =
       if (!sameCommit) row.note += ' · 배포 커밋 변경';
       if (!row.requestId) row.note += ' · 서버 요청 ID 미제공';
     } catch {
-      row.state = 'error'; row.note = '통신 실패 · 응답 미확인';
-      row.checkedAt = new Date().toISOString(); row.clockSource = 'client';
+      row.state = 'unexecuted'; row.note = '미실행 · HTTP 응답 없음';
     }
     // Only approval.status is inspected. Note bodies are never read or persisted.
     onResult?.([...results]);
