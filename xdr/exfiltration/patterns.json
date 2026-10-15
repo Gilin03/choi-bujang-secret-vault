@@ -1,0 +1,20 @@
+{
+  "schema": "aleph.xdr.patterns.v1",
+  "moduleKey": "exfiltration",
+  "patterns": [
+    {
+      "id": "large_transfer_to_new_destination",
+      "name": "처음 보는 목적지의 대용량 전송",
+      "condition": "T1041 또는 T1048 경보에서 처음 보는 목적지로 50MB 이상이 전송되거나, 80MB 이상 전송과 반복·대체 포트·자료 묶음 전체 반출 신호가 함께 있고 규칙 수준이 10 이상이면 명확한 유출 후보로 판단합니다.",
+      "evidence": "MITRE ATT&CK T1041은 명령 통로를 통한 유출, T1048은 다른 프로토콜을 통한 유출을 다루며 이 규칙은 큰 외부 전송의 구체적 신호를 함께 확인합니다.",
+      "source": "https://attack.mitre.org/techniques/T1041/"
+    },
+    {
+      "id": "off_hours_archive_exfiltration",
+      "name": "업무 시간 밖 압축 파일 반출",
+      "condition": "T1041 또는 T1048 경보가 업무·수업 시간 밖임을 설명에 명시하고, 압축 파일이 목적지로 실제 전송되었으며 규칙 수준이 10 이상이면 명확한 유출 후보로 판단합니다.",
+      "evidence": "MITRE ATT&CK T1048은 명령 통로가 아닌 프로토콜을 통한 유출을 다루며, 시간 밖 압축 파일의 외부 전송은 검토할 구체적 반출 신호입니다.",
+      "source": "https://attack.mitre.org/techniques/T1048/"
+    }
+  ]
+}

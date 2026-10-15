@@ -41,12 +41,13 @@ export function createDenyRules({ alerts, decisions, now = new Date(), ttlMs = 1
   });
 }
 
-export function matchActiveDenyRule(sourceAddress, rules, now = new Date()) {
+export function matchActiveDenyRule(sourceAddress, rules, now = new Date(), destinationAddress) {
   const current = parseDate(now);
-  if (!current || !isIpv4(sourceAddress) || !Array.isArray(rules)) return null;
+  if (!current || !Array.isArray(rules)) return null;
   return rules.find((rule) => rule?.action === 'deny'
-    && rule.sourceAddress === sourceAddress
-    && isIpv4(rule.sourceAddress)
+    && ((rule.sourceAddress === sourceAddress && isIpv4(sourceAddress) && isIpv4(rule.sourceAddress))
+      || (rule.destinationAddress === destinationAddress
+        && isIpv4(destinationAddress) && isIpv4(rule.destinationAddress)))
     && /^[A-Za-z0-9._-]{1,80}$/u.test(rule.evidenceAlertId ?? '')
     && Number.isFinite(rule.confidence)
     && rule.confidence >= 0.85 && rule.confidence <= 1

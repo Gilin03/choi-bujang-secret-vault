@@ -79,6 +79,9 @@ export async function runXdr({ root, moduleKey, writeError = (line) => console.e
   } else if (moduleKey === 'privilege') {
     const effects = await import(pathToFileURL(join(root, 'xdr', moduleKey, 'respond.mjs')).href);
     await effects.writeResponseArtifacts({ root, alerts: fixture.alerts, decisions });
+  } else if (moduleKey === 'exfiltration') {
+    const effects = await import(pathToFileURL(join(root, 'xdr', moduleKey, 'respond.mjs')).href);
+    await effects.writeResponseArtifacts({ root, alerts: fixture.alerts, decisions });
   }
   return result;
 }
@@ -221,6 +224,34 @@ export async function evaluatePrivilegeGate({ root, now = new Date() }) {
   return counts;
 }
 
+export async function evaluateExfiltrationGate({ root, now = new Date() }) {
+  const fixture = JSON.parse(await readFile(join(root, 'xdr', 'fixtures', 'exfiltration.json'), 'utf8'));
+  const result = JSON.parse(await readFile(join(root, 'xdr', 'exfiltration', 'result.json'), 'utf8'));
+  const ruleSet = JSON.parse(await readFile(join(root, 'xdr', 'exfiltration', 'deny-rules.json'), 'utf8'));
+  if (ruleSet.schema !== 'aleph.xdr.deny-rules.v1' || !Array.isArray(ruleSet.rules)) {
+    throw new Error('XDR 거부 규칙 형식이 아닙니다.');
+  }
+  const [{ decideWithXdr }, { fixtureRequests }] = await Promise.all([
+    import(pathToFileURL(join(root, 'src', 'decider-with-xdr.mjs')).href),
+    import(pathToFileURL(join(root, 'scripts', 'fixture-7.mjs')).href),
+  ]);
+  const baseRequest = fixtureRequests().normal;
+  const decisionsById = new Map(result.decisions.map((decision) => [decision.alertId, decision]));
+  const counts = { deny: 0, continue: 0, normalDenied: 0 };
+
+  for (const alert of fixture.alerts) {
+    const decision = decisionsById.get(alert?.id);
+    const gateResult = await decideWithXdr({ ...baseRequest, requestId: randomUUID() }, {
+      destinationAddress: alert?.data?.dstip,
+      denyRules: ruleSet.rules,
+      now,
+    });
+    counts[gateResult.gate.action] += 1;
+    if (decision?.action === 'record' && gateResult.gate.action === 'deny') counts.normalDenied += 1;
+  }
+  return counts;
+}
+
 async function updateAlertLog(root, alerts, decisions) {
   const logPath = join(root, ALERTS_LOG);
   let existing = '';
@@ -291,6 +322,10 @@ if (isMain) {
     } else if (process.argv[2] === 'privilege') {
       const result = JSON.parse(await readFile(join(root, 'xdr', 'privilege', 'result.json'), 'utf8'));
       const gate = await evaluatePrivilegeGate({ root });
+      console.log(`block ${result.counts.block} · alert ${result.counts.alert} · record ${result.counts.record} · XDR gate deny ${gate.deny} · continue ${gate.continue} · 정상 XDR 차단 ${gate.normalDenied}건`);
+    } else if (process.argv[2] === 'exfiltration') {
+      const result = JSON.parse(await readFile(join(root, 'xdr', 'exfiltration', 'result.json'), 'utf8'));
+      const gate = await evaluateExfiltrationGate({ root });
       console.log(`block ${result.counts.block} · alert ${result.counts.alert} · record ${result.counts.record} · XDR gate deny ${gate.deny} · continue ${gate.continue} · 정상 XDR 차단 ${gate.normalDenied}건`);
     }
   } catch (error) {

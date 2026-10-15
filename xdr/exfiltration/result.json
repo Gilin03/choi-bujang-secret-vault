@@ -1,0 +1,191 @@
+{
+  "schema": "aleph.xdr.result.v1",
+  "moduleKey": "exfiltration",
+  "decisions": [
+    {
+      "alertId": "ex-01",
+      "action": "block",
+      "confidence": 0.9,
+      "reason": "처음 보는 목적지의 대용량 전송: 고위험 외부 전송 신호 확인"
+    },
+    {
+      "alertId": "ex-02",
+      "action": "block",
+      "confidence": 0.9,
+      "reason": "업무 시간 밖 압축 파일 반출: 고위험 외부 전송 신호 확인"
+    },
+    {
+      "alertId": "ex-03",
+      "action": "block",
+      "confidence": 0.9,
+      "reason": "처음 보는 목적지의 대용량 전송: 고위험 외부 전송 신호 확인"
+    },
+    {
+      "alertId": "ex-04",
+      "action": "block",
+      "confidence": 0.9,
+      "reason": "처음 보는 목적지의 대용량 전송: 고위험 외부 전송 신호 확인"
+    },
+    {
+      "alertId": "ex-05",
+      "action": "block",
+      "confidence": 0.9,
+      "reason": "처음 보는 목적지의 대용량 전송: 고위험 외부 전송 신호 확인"
+    },
+    {
+      "alertId": "ex-06",
+      "action": "block",
+      "confidence": 0.9,
+      "reason": "처음 보는 목적지의 대용량 전송: 고위험 외부 전송 신호 확인"
+    },
+    {
+      "alertId": "ex-07",
+      "action": "block",
+      "confidence": 0.9,
+      "reason": "처음 보는 목적지의 대용량 전송: 고위험 외부 전송 신호 확인"
+    },
+    {
+      "alertId": "ex-08",
+      "action": "block",
+      "confidence": 0.9,
+      "reason": "처음 보는 목적지의 대용량 전송: 고위험 외부 전송 신호 확인"
+    },
+    {
+      "alertId": "ex-09",
+      "action": "block",
+      "confidence": 0.9,
+      "reason": "처음 보는 목적지의 대용량 전송: 고위험 외부 전송 신호 확인"
+    },
+    {
+      "alertId": "ex-10",
+      "action": "block",
+      "confidence": 0.9,
+      "reason": "처음 보는 목적지의 대용량 전송: 고위험 외부 전송 신호 확인"
+    },
+    {
+      "alertId": "ex-11",
+      "action": "alert",
+      "confidence": 0.65,
+      "reason": "처음 보는 목적지의 대용량 전송: 차단 기준에 이르지 않은 전송 신호 검토 필요"
+    },
+    {
+      "alertId": "ex-12",
+      "action": "alert",
+      "confidence": 0.65,
+      "reason": "처음 보는 목적지의 대용량 전송: 차단 기준에 이르지 않은 전송 신호 검토 필요"
+    },
+    {
+      "alertId": "ex-13",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "일치하는 자료 반출 패턴 없음"
+    },
+    {
+      "alertId": "ex-14",
+      "action": "alert",
+      "confidence": 0.65,
+      "reason": "처음 보는 목적지의 대용량 전송: 차단 기준에 이르지 않은 전송 신호 검토 필요"
+    },
+    {
+      "alertId": "ex-15",
+      "action": "alert",
+      "confidence": 0.65,
+      "reason": "처음 보는 목적지의 대용량 전송: 차단 기준에 이르지 않은 전송 신호 검토 필요"
+    },
+    {
+      "alertId": "ex-16",
+      "action": "alert",
+      "confidence": 0.65,
+      "reason": "처음 보는 목적지의 대용량 전송: 차단 기준에 이르지 않은 전송 신호 검토 필요"
+    },
+    {
+      "alertId": "ex-17",
+      "action": "alert",
+      "confidence": 0.65,
+      "reason": "처음 보는 목적지의 대용량 전송: 차단 기준에 이르지 않은 전송 신호 검토 필요"
+    },
+    {
+      "alertId": "ex-18",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "일치하는 자료 반출 패턴 없음"
+    },
+    {
+      "alertId": "ex-19",
+      "action": "alert",
+      "confidence": 0.65,
+      "reason": "처음 보는 목적지의 대용량 전송: 차단 기준에 이르지 않은 전송 신호 검토 필요"
+    },
+    {
+      "alertId": "ex-20",
+      "action": "alert",
+      "confidence": 0.65,
+      "reason": "처음 보는 목적지의 대용량 전송: 차단 기준에 이르지 않은 전송 신호 검토 필요"
+    },
+    {
+      "alertId": "ex-21",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "일치하는 자료 반출 패턴 없음"
+    },
+    {
+      "alertId": "ex-22",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "일치하는 자료 반출 패턴 없음"
+    },
+    {
+      "alertId": "ex-23",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "일치하는 자료 반출 패턴 없음"
+    },
+    {
+      "alertId": "ex-24",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "일치하는 자료 반출 패턴 없음"
+    },
+    {
+      "alertId": "ex-25",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "일치하는 자료 반출 패턴 없음"
+    },
+    {
+      "alertId": "ex-26",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "일치하는 자료 반출 패턴 없음"
+    },
+    {
+      "alertId": "ex-27",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "일치하는 자료 반출 패턴 없음"
+    },
+    {
+      "alertId": "ex-28",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "일치하는 자료 반출 패턴 없음"
+    },
+    {
+      "alertId": "ex-29",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "일치하는 자료 반출 패턴 없음"
+    },
+    {
+      "alertId": "ex-30",
+      "action": "record",
+      "confidence": 0.1,
+      "reason": "일치하는 자료 반출 패턴 없음"
+    }
+  ],
+  "counts": {
+    "block": 10,
+    "alert": 8,
+    "record": 12
+  }
+}

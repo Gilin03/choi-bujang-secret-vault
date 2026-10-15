@@ -62,3 +62,9 @@ node scripts/xdr-run.mjs brute-force
 `npm run xdr:run -- privilege`는 `xdr/fixtures/privilege.json`의 26개 가상 Wazuh 형식 경보를 판단합니다. 확인용 `privilege/read-alerts.mjs`는 시각·출발 주소·계정·규칙 수준·설명만 추려 비밀처럼 보이는 문자열을 가립니다. `patterns.json`과 단독 실행형 `decide.mjs`는 관리자 그룹 추가, 처음 보는 관리자 명령·권한 전환, 설명에 명시된 업무 시간 밖 권한 사용만 MITRE ATT&CK T1068·T1078 근거와 함께 다룹니다. `decide.mjs`에는 import, 파일·네트워크 접근이 없습니다. 명확한 고위험 신호는 block, 덜 구체적인 신호는 alert, 나머지는 record입니다.
 
 실행하면 `privilege/result.json`, 15분 만료와 근거 경보 ID가 포함된 `privilege/deny-rules.json`, 중복 방지 `xdr/alerts.log`를 갱신합니다. T1068·T1078 계정·권한 활동이 있지만 고위험 근거가 부족한 시도는 alert로 남기고, 해당 기법 신호가 없는 정상 이벤트는 record로 둡니다. 응답 모듈은 경보의 실제 규칙·주소·설명을 다시 검증한 block 후보만 기존 `src/decider-with-xdr.mjs` 게이트에 전달할 형식으로 만듭니다. 로그에는 경보 ID·행동·확신도·고정 사유만 남기며 계정·주소·원본 설명은 기록하지 않습니다. 실행 결과의 XDR gate `deny`·`continue`와 정상 이벤트 차단 건수도 출력합니다. 이는 fixture 점검이며 실제 Wazuh 수집이나 운영 트래픽 차단은 아닙니다.
+
+## 자료 반출 exfiltration 연습
+
+`npm run xdr:run -- exfiltration`은 30개 가상 Wazuh 형식 경보를 판단합니다. 확인용 `read-alerts.mjs`는 시각·출발 주소·계정·규칙 수준·설명만 추려 비밀처럼 보이는 문자열을 가립니다. 단독 `decide.mjs`는 MITRE ATT&CK T1041 명령 통로 유출과 T1048 대체 프로토콜 유출에 한해, 처음 보는 목적지의 대용량 전송과 업무 시간 밖 압축 파일 반출을 높은 확신도의 차단 후보로 분류합니다. 경계가 불분명한 전송은 alert, 전송이 없거나 정상 신호는 record입니다.
+
+실행하면 `exfiltration/result.json`, 15분 만료와 근거 경보 ID가 포함된 `exfiltration/deny-rules.json`, 중복 방지 `xdr/alerts.log`를 갱신합니다. responder는 판정 결과를 다시 계산해 일치하는 block 후보의 목적지 주소만 저장하고, 안전한 경보 ID·행동·확신도·고정 사유만 로그에 남깁니다. 실행기는 fixture 목적지 주소를 기존 `src/decider-with-xdr.mjs` 게이트에 전달해 block·alert·record와 gate 결과를 출력합니다. 기존 출발 주소 차단은 그대로 유지됩니다. 이는 연습 fixture 검증이며 실제 Wazuh 수집이나 운영 트래픽 차단이 아닙니다.
