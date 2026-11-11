@@ -1,72 +1,43 @@
-# BYTE BACK — 보안 학습·방어 프로젝트
+# BYTE BACK — 서버 측 인증·인가와 사용자별 데이터 보호
 
-Supabase 로그인 세션과 사용자별 자료 접근을 서버에서 확인하는 자료실 앱, 그리고 계약 판정·탐지·XDR fixture 실습 코드를 함께 다루는 학습용 저장소입니다. 코드 기준 기술은 JavaScript/Node.js 22+, Vercel Functions, Supabase Auth/Postgres, `@supabase/supabase-js`, `jose`입니다.
+Supabase Auth 로그인 세션을 Vercel Functions에서 검증하고, 사용자별 메모 API를 서버에서 보호하는 보안 중심 웹 애플리케이션입니다.
 
-## 핵심 기능
+**개인 구현 범위:** 세션 검증, 서버 소유권 확인, 백업·복구 경계 정리  
+**기술:** JavaScript · Node.js 22+ · Vercel Functions · Supabase Auth/Postgres · `@supabase/supabase-js` · `jose`
 
-- 같은 출처의 Vercel Auth 프록시를 통해 Supabase 이메일·비밀번호 로그인을 처리하고, Vercel 자료 API에서 Supabase 발급자·대상·만료와 로그인 세션을 검증합니다.
-- 메모 CRUD, 강사 공지, 사용자별 백업과 단건 복구를 서버 함수로 처리합니다. 메모 API는 저장된 owner를 확인하며 공지 수정은 DB의 강사 권한을 확인합니다.
-- 세션 승인 화면과 탈환 작전실을 제공합니다. 작전실은 본인 서버 요청 기록과 백업 메타데이터를 읽습니다.
-- 계약 판정기, 가상 사건 탐지기, 여섯 종류의 XDR 연습은 운영 앱과 분리된 로컬 학습 경로입니다.
+[데모](https://choi-bujang-secret-vault-umber.vercel.app/) · [아키텍처](docs/portfolio/architecture.svg) · [상세 기술 문서](docs/portfolio/)
+
+> 이 문서는 `main @ 88549c2`의 구현을 설명합니다. 데모·Production API·DB는 이번 문서 검토에서 열거나 실행하지 않았습니다.
+
+## 프로젝트와 구현 결과
+
+- **로그인·JWT 검증:** 같은 출처의 Vercel Auth 프록시를 거쳐 Supabase Auth에 로그인하고, 보호 API가 검증된 `sub`와 `session_id`를 사용합니다.
+- **세션 게이트:** 현재 검증 세션의 서버 승인 상태를 확인한 뒤 보호 API에 접근합니다. 사용자가 자신의 세션을 승인하며 MFA나 물리 기기 증명은 아닙니다.
+- **사용자별 메모:** 목록·조회·수정·삭제 요청을 서버 principal의 `owner_id`로 제한합니다.
+- **백업·복구:** 메모의 최초 상태를 한 번 저장하고 본문 SHA-256을 확인합니다. 현재 복구의 owner 충돌·원자성 한계는 아래 기술 문서에 명시했습니다.
+- **운영 기록:** 본인 요청의 경로·상태·시각 등 제한된 metadata와 백업 fingerprint를 보여줍니다.
+- **분리된 학습 코드:** 계약 판정기·탐지기·XDR fixture는 로컬 실습용이며 운영 앱의 실제 탐지·차단 경로가 아닙니다.
 
 ## 아키텍처
 
-```mermaid
-flowchart LR
-  subgraph app[자료실 앱 경로]
-    browser[브라우저]
-    authproxy[Vercel Auth 프록시]
-    auth[Supabase Auth]
-    api[Vercel 보호 API]
-    db[Supabase DB]
-    browser --> authproxy --> auth
-    browser --> api --> db
-  end
-  subgraph lab[분리된 학습·fixture 경로]
-    request[계약 요청 fixture] --> decider[src/decider.mjs]
-    events[가상 사건] --> detect[src/detect.mjs]
-    xdr[xdr/fixtures] --> runner[scripts/xdr-run.mjs]
-    runner --> actions[block · alert · record 결과]
-  end
-```
+![BYTE BACK architecture derived from main source](docs/portfolio/architecture.svg)
 
-앱 경로에서는 서버가 검증한 Supabase 사용자와 `session_id`를 기준으로 승인 상태를 확인한 뒤 DB 자료를 처리합니다. 판정기·탐지기·XDR fixture는 이 앱 경로에 연결된 운영 방어 파이프라인이 아닙니다.
+브라우저 → Auth 프록시 → Supabase Auth → bearer token → 보호 API → JWT·세션 확인 → owner 범위 DB 요청 순으로 동작합니다. API는 서버 전용 secret/service-role key를 사용하므로 RLS를 우회할 수 있고, 사용자별 데이터 경계는 서버 owner 검사에 의존합니다.
 
-## 보안 설계와 검증 범위
+## 구현 근거와 한계
 
-- 세션 승인은 검증된 Supabase Auth 로그인 세션에 대한 서버 승인입니다. 물리 기기나 설치 앱의 소유를 증명하지 않습니다.
-- 소유권·세션 승인·공지 권한 테스트는 주입된 검증기와 fixture DB를 사용합니다. A/B 교차 계정 메모 접근 거부와 세션 간 승인 비상속을 확인하는 로컬 테스트가 있습니다.
-- 복구 코드는 백업의 소유자·메모 ID·내용 SHA-256을 확인하고, DB 반영 후 ID·owner·해시를 다시 검사합니다. `test/note-restore.test.mjs`는 메모리 DB fixture 검증이며 Production 복구 E2E는 저장소 기록상 미실행입니다.
-- 저장소에는 실제 DB 권한 조회와 단계별 Production 확인 기록도 있습니다. 이는 기록된 시점·환경의 증거이며 현재 배포나 DB 상태를 보증하지 않습니다. 이 README 정리에서는 DB·Production을 다시 확인하지 않았습니다.
+- `getClaims` 검증과 자기 세션 승인 게이트: [인증·세션 문서](docs/portfolio/authentication-and-session.md)
+- 메모 API owner 검사, RLS와 service-role 권한 경계: [인가·데이터 격리 문서](docs/portfolio/authorization-and-data-isolation.md)
+- 최초 백업은 변경 버전 이력이 아닙니다. 현재 `main`의 복구는 여러 DB 요청으로 진행되며 다른 owner 행 충돌과 transaction rollback을 보장하지 않습니다: [백업·복구 문서](docs/portfolio/backup-and-recovery.md)
+- 현재 생성 API는 선택적으로 client 지정 UUID를 허용합니다. 새 DB에서 API 쓰기에 필요한 service-role grant 재현성도 확인되지 않았습니다.
+- Node 테스트는 verifier·fixture DB 경로를 포함하며 PostgreSQL 동시성이나 Production E2E를 대신하지 않습니다. 이번 문서 작업에서는 테스트·빌드를 실행하지 않았습니다.
+- 앱 화면 캡처 파일이 저장소에 없어 가짜 이미지를 추가하지 않았습니다. 화면 구조는 [public/index.html](public/index.html)에서 볼 수 있고, 데모 주소의 현재 상태는 확인하지 않았습니다.
 
-## 테스트·검증 명령
+## 로컬 실행과 추가 문서
 
-저장소에 정의된 대표 로컬 명령입니다. `npm test`와 `npm run dev` 스크립트는 없습니다.
+Node.js 22 이상이 필요합니다. DB 구성과 환경변수는 [로컬 설정](docs/LOCAL_SETUP.md), 기존 단계 기록은 [COURSE_HISTORY](docs/COURSE_HISTORY.md)를 참고하세요. 환경을 준비한 뒤 `npx vercel dev`로 Vercel Functions를 포함해 실행합니다. 정적 파일 서버만으로 보호 API를 실행할 수 없습니다. 실제 개인정보나 운영 비밀값은 입력하지 마세요.
 
-    node --test test/*.test.mjs
-    npm run decider:test
-    npm run detect:test
-    npm run test:stage11
-    npm run test:stage12
-    npm run xdr:run -- brute-force
-    npm run build -- --local
-
-Node 테스트와 판정·탐지·XDR 명령은 로컬 코드·fixture 검증입니다. `xdr:run`의 `block / alert / record`는 가상 경보에 대한 분류 결과이며 실제 트래픽 차단이 아닙니다. Production HTTP 자체 점검 스크립트는 `npm run operations:check`이며, 인증이 필요한 행은 실행하지 않고 남깁니다. 이 문서 변경 중 위 명령들은 실행하지 않았습니다.
-
-## 로컬 실행
-
-Node.js 22 이상과 저장소 의존성이 필요합니다. 새 학습 DB 설정, 환경변수, Vercel CLI 연결 순서는 [로컬 설정 문서](docs/LOCAL_SETUP.md)를 참고하세요. 보호 API까지 실행할 때는 정적 파일 서버 대신 연결된 Vercel CLI의 `npx vercel dev`를 사용합니다.
-
-## 한계와 개선 방향
-
-- 제공 ALEPH SDP 운영 엔진은 이 저장소에 포함되거나 앱 API에 연결되어 있지 않습니다. `src/decider.mjs`의 반환 판정은 운영 서비스에 실제 적용된 통제가 아닙니다.
-- `detect()`는 `propose_revocation` 제안만 반환합니다. 실제 접속 회수는 수행하지 않습니다.
-- XDR 입력은 수업용 fixture이며 실제 Wazuh 스트림이나 운영 트래픽 차단과 연결되어 있지 않습니다. ZTNA 게이트 결과도 fixture 실행기 안에서만 확인합니다.
-- 백업 복구의 실제 Production E2E와 공식 운영 엔진 검증은 완료된 것으로 문서화되어 있지 않습니다. 개선 시 실제 엔진 연동 계약, 운영 이벤트 소스, 별도 승인된 통합 검증이 필요합니다.
-
-## 단계 이력·상세 문서
-
-- [기존 단계별 설명과 실행·검증 기록](docs/COURSE_HISTORY.md)
-- [DB·환경변수·로컬 실행 안내](docs/LOCAL_SETUP.md)
-- [12단계 작전실 설계와 실행 기록](docs/stage12-operations.md)
-- [판정 요청 계약](docs/DECIDER_REQUEST.md) · [탐지 이벤트 계약](docs/DETECT_EVENTS.md) · [XDR fixture 설명](xdr/README.md)
+- [시스템 아키텍처](docs/portfolio/architecture.md)
+- [운영 기록·민감정보 경계](docs/portfolio/operations-and-audit.md)
+- [분리된 보안 학습 모듈](docs/portfolio/learning-modules.md)
+- [Stage 12 운영실 기록](docs/stage12-operations.md) · [XDR fixture 설명](xdr/README.md)

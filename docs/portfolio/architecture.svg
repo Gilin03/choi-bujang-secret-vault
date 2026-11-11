@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900" role="img" aria-labelledby="title desc">
+  <title id="title">BYTE BACK architecture from main source</title>
+  <desc id="desc">Browser, Vercel Auth proxy, Supabase Auth, protected Vercel APIs, server-side identity and session checks, Supabase Postgres, and separate local learning modules.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#537084"/></marker>
+    <marker id="arrowTeal" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#147d82"/></marker>
+    <style>
+      .bg{fill:#f7fafc}.title{font:700 30px 'Segoe UI',sans-serif;fill:#173044}.subtitle{font:400 15px 'Segoe UI',sans-serif;fill:#526879}
+      .lane{fill:#fff;stroke:#d2dee5;stroke-width:2}.lab{fill:#fbfcfe;stroke:#8b9ba8;stroke-width:2;stroke-dasharray:9 7}
+      .box{fill:#fff;stroke:#7892a1;stroke-width:2;rx:16}.accent{fill:#e8f6f5;stroke:#3b9390;stroke-width:2;rx:16}
+      .db{fill:#f3f7fa;stroke:#607e8e;stroke-width:2;rx:16}.h{font:700 18px 'Segoe UI',sans-serif;fill:#18394e}
+      .t{font:400 14px 'Segoe UI',sans-serif;fill:#405d6e}.small{font:400 12px 'Segoe UI',sans-serif;fill:#587080}
+      .lanehead{font:700 13px 'Segoe UI',sans-serif;letter-spacing:1.4px;fill:#587080}.arrow{fill:none;stroke:#537084;stroke-width:2.5;marker-end:url(#arrow)}
+      .secure{fill:none;stroke:#147d82;stroke-width:2.8;marker-end:url(#arrowTeal)}.dash{fill:none;stroke:#8699a5;stroke-width:2;stroke-dasharray:7 6}
+      .num{font:700 12px 'Segoe UI',sans-serif;fill:#fff}.numbg{fill:#147d82}
+    </style>
+  </defs>
+  <rect class="bg" width="1440" height="900"/>
+  <text class="title" x="60" y="58">BYTE BACK · 현재 main 아키텍처</text>
+  <text class="subtitle" x="60" y="86">코드에서 확인한 데이터 경계 · 화면 캡처가 아닌 구현 흐름도 · main @ 88549c2</text>
+
+  <rect class="lane" x="42" y="115" width="1356" height="465" rx="24"/>
+  <text class="lanehead" x="70" y="145">WEB APPLICATION · VERCEL FUNCTIONS + SUPABASE</text>
+
+  <rect class="box" x="76" y="195" width="235" height="108"/>
+  <circle class="numbg" cx="102" cy="221" r="13"/><text class="num" x="98" y="225">1</text>
+  <text class="h" x="122" y="229">Browser UI</text>
+  <text class="t" x="96" y="258">public/index.html</text>
+  <text class="small" x="96" y="281">로그인 · 세션 게이트 · 메모 · 운영실</text>
+
+  <rect class="accent" x="379" y="165" width="260" height="105"/>
+  <circle class="numbg" cx="405" cy="191" r="13"/><text class="num" x="401" y="195">2</text>
+  <text class="h" x="425" y="199">Vercel Auth Proxy</text>
+  <text class="t" x="399" y="228">/api/auth-proxy/*</text>
+  <text class="small" x="399" y="250">허용된 Auth 경로만 전달</text>
+
+  <rect class="box" x="730" y="165" width="260" height="105"/>
+  <text class="h" x="756" y="203">Supabase Auth</text>
+  <text class="t" x="750" y="232">발급 · 갱신 · 사용자 확인</text>
+  <text class="small" x="750" y="252">Auth 응답 token은 브라우저가 보유</text>
+
+  <rect class="accent" x="379" y="356" width="260" height="133"/>
+  <circle class="numbg" cx="405" cy="382" r="13"/><text class="num" x="401" y="386">3</text>
+  <text class="h" x="425" y="390">Protected API</text>
+  <text class="t" x="399" y="420">Vercel Functions</text>
+  <text class="small" x="399" y="445">메모 · 공지 · 복구 · 운영 기록</text>
+  <text class="small" x="399" y="468">서버 전용 SUPABASE_SECRET_KEY</text>
+
+  <rect class="box" x="730" y="330" width="260" height="120"/>
+  <circle class="numbg" cx="756" cy="356" r="13"/><text class="num" x="752" y="360">4</text>
+  <text class="h" x="776" y="364">Verify principal</text>
+  <text class="t" x="750" y="394">getClaims(token)</text>
+  <text class="small" x="750" y="417">sub · session_id · iss · aud · exp</text>
+  <text class="small" x="750" y="438">role=authenticated</text>
+
+  <rect class="accent" x="1050" y="330" width="300" height="120"/>
+  <circle class="numbg" cx="1076" cy="356" r="13"/><text class="num" x="1072" y="360">5</text>
+  <text class="h" x="1096" y="364">Session activation gate</text>
+  <text class="t" x="1070" y="394">session_id + owner_id 조회</text>
+  <text class="small" x="1070" y="417">사용자가 자기 세션을 승인</text>
+  <text class="small" x="1070" y="438">MFA · 기기 증명 아님</text>
+
+  <rect class="db" x="1050" y="485" width="300" height="73"/>
+  <text class="h" x="1070" y="514">Supabase Postgres</text>
+  <text class="small" x="1070" y="538">notes · first backup · session · request metadata</text>
+
+  <path class="secure" d="M311 226 L379 218"/>
+  <text class="small" x="318" y="207">Auth request</text>
+  <path class="secure" d="M639 217 L730 217"/>
+  <text class="small" x="654" y="198">publishable key</text>
+  <path class="arrow" d="M730 246 C690 295 455 305 455 270"/>
+  <text class="small" x="536" y="300">Auth response</text>
+  <path class="secure" d="M311 276 C342 315 355 412 379 412"/>
+  <text class="small" x="312" y="357">Bearer token</text>
+  <path class="arrow" d="M639 420 L730 402"/>
+  <path class="arrow" d="M990 391 L1050 391"/>
+  <path class="arrow" d="M1200 450 L1200 485"/>
+  <path class="arrow" d="M990 359 C1040 310 950 285 900 270"/>
+  <text class="small" x="960" y="300">getClaims validation</text>
+  <path class="dash" d="M639 464 C790 530 920 530 1050 523"/>
+  <text class="small" x="785" y="548">server key: bypasses RLS · API owner filters remain critical</text>
+
+  <rect class="lab" x="42" y="610" width="1356" height="235" rx="24"/>
+  <text class="lanehead" x="70" y="640">LOCAL LEARNING PATH · NOT CONNECTED TO THE WEB APP API</text>
+  <rect class="box" x="100" y="690" width="330" height="105"/>
+  <text class="h" x="126" y="729">Contract decider</text>
+  <text class="t" x="126" y="758">src/decider.mjs · local request contracts</text>
+  <rect class="box" x="555" y="690" width="330" height="105"/>
+  <text class="h" x="581" y="729">Event detector</text>
+  <text class="t" x="581" y="758">src/detect.mjs · returns a revocation proposal</text>
+  <rect class="box" x="1010" y="690" width="330" height="105"/>
+  <text class="h" x="1036" y="729">XDR fixture runner</text>
+  <text class="t" x="1036" y="758">xdr/fixtures · scripts/xdr-run.mjs</text>
+  <text class="small" x="1036" y="780">Wazuh-shaped training data, not production telemetry</text>
+</svg>
